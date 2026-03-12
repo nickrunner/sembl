@@ -1,0 +1,21 @@
+{
+  "name": "@sembl/examples",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup",
+    "extract": "sembl extract --input src/schemas --output src/generated",
+    "demo": "node dist/demo.js"
+  },
+  "dependencies": {
+    "@sembl/compiler": "workspace:*",
+    "@sembl/core": "workspace:*",
+    "@sembl/provider-openai": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0"
+  }
+}
