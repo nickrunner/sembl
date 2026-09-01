@@ -13,11 +13,11 @@ export class Listing {
   name!: string;
 
   @Describe("Nightly rate in the listing's currency.")
-  @Constrain({ min: 0, max: 10000 })
+  @Constrain({ minimum: 0, maximum: 10000 })
   nightlyRate?: number;
 
   @Describe("Latitude of the property.")
-  @Constrain({ min: -90, max: 90 })
+  @Constrain({ minimum: -90, maximum: 90 })
   latitude?: number;
 
   @Describe("Photos of the property.")
@@ -64,13 +64,13 @@ export class UnreadableAnnotations {
   @Constrain({ maxLength: 40, minLength: MAX_TITLE })
   partiallyReadable?: string;
 
-  // @ts-expect-error - not a FieldConstraints key; exercises the compiler warning
   @Describe("Bound by a key that is not in FieldConstraints.")
+  // @ts-expect-error - not a FieldConstraints key; exercises the compiler warning
   @Constrain({ notAConstraint: 5 })
   unknownKey?: string;
 
-  // @ts-expect-error - maxLength is a number; exercises the compiler warning
   @Describe("Bound by a value of the wrong literal kind.")
+  // @ts-expect-error - maxLength is a number; exercises the compiler warning
   @Constrain({ maxLength: "40" })
   wrongValueKind?: string;
 }

@@ -1,13 +1,101 @@
-import type { RuntimeSchema, FieldDescriptor, SchemaBundle } from "../schema/types.js";
+import type {
+  RuntimeSchema,
+  FieldDescriptor,
+  FieldConstraints,
+  SchemaBundle,
+} from "../schema/types.js";
+import type { ResolvedEnums } from "../schema/enum-source.js";
+
+/**
+ * Options for prompt generation.
+ */
+export interface PromptOptions {
+  /** Legal values for dynamic enum sources, from `resolveEnumSources` */
+  resolvedEnums?: ResolvedEnums;
+}
+
+/**
+ * Render FieldConstraints as instruction phrases a model will act on.
+ * Returns an empty array when the field is unconstrained.
+ */
+function describeConstraints(constraints: FieldConstraints | undefined): string[] {
+  if (!constraints) {
+    return [];
+  }
+
+  const phrases: string[] = [];
+  const { minLength, maxLength, minimum, maximum, minItems, maxItems, pattern } =
+    constraints;
+
+  if (minLength !== undefined && maxLength !== undefined) {
+    phrases.push(`between ${minLength} and ${maxLength} characters`);
+  } else if (maxLength !== undefined) {
+    phrases.push(`at most ${maxLength} characters`);
+  } else if (minLength !== undefined) {
+    phrases.push(`at least ${minLength} characters`);
+  }
+
+  if (minimum !== undefined && maximum !== undefined) {
+    phrases.push(`between ${minimum} and ${maximum}`);
+  } else if (minimum !== undefined) {
+    phrases.push(`at least ${minimum}`);
+  } else if (maximum !== undefined) {
+    phrases.push(`at most ${maximum}`);
+  }
+
+  if (minItems !== undefined && maxItems !== undefined) {
+    phrases.push(`between ${minItems} and ${maxItems} entries`);
+  } else if (maxItems !== undefined) {
+    phrases.push(`at most ${maxItems} entries`);
+  } else if (minItems !== undefined) {
+    phrases.push(`at least ${minItems} entries`);
+  }
+
+  if (pattern !== undefined) {
+    phrases.push(`matching the pattern /${pattern}/`);
+  }
+
+  return phrases;
+}
+
+/**
+ * Describe a dynamic enum field's allowed values.
+ *
+ * Deliberately a pointer rather than the values themselves. A CMS taxonomy can
+ * run to several hundred slugs, and every one of them is already in the JSON
+ * Schema the model receives on the same request — repeating them here would
+ * roughly double the input tokens of every call to restate what the schema
+ * already enforces. Naming the source and the count still tells the model the
+ * field is closed-vocabulary and that guessing is wrong, which is the part the
+ * schema alone does not communicate. This also matches how static `enum`
+ * fields are already handled: the prompt carries semantics, the schema carries
+ * the legal values.
+ */
+function describeDynamicEnum(
+  sourceId: string,
+  resolvedEnums: ResolvedEnums | undefined,
+): string | undefined {
+  const values = resolvedEnums?.[sourceId];
+  if (!values || values.length === 0) {
+    // Unresolved source — the field is a free-form string, nothing to say.
+    return undefined;
+  }
+  return `exactly one of the ${values.length} allowed "${sourceId}" values enumerated in the JSON schema for this field (never invent a value)`;
+}
 
 /**
  * Build a semantic context block for a field, including nested schema context.
+ *
+ * `visiting` holds the schema ids on the current path so a bundle that
+ * references itself terminates instead of recursing forever.
  */
 function buildFieldContext(
   field: FieldDescriptor,
   parentPath: string,
   bundle: SchemaBundle | undefined,
   depth: number,
+  options: PromptOptions,
+  visiting: Set<string>,
 ): string[] {
   const lines: string[] = [];
   const indent = "  ".repeat(depth);
@@ -17,29 +105,66 @@ function buildFieldContext(
     `${indent}- ${fieldPath} (${field.required ? "required" : "optional"}): ${field.description}`,
   );
 
+  const rules = describeConstraints(field.constraints);
+
+  const dynamicSourceId =
+    field.type.kind === "dynamicEnum"
+      ? field.type.sourceId
+      : field.type.kind === "array" && field.type.items.kind === "dynamicEnum"
+        ? field.type.items.sourceId
+        : undefined;
+  if (dynamicSourceId) {
+    const allowed = describeDynamicEnum(dynamicSourceId, options.resolvedEnums);
+    if (allowed) {
+      rules.push(allowed);
+    }
+  }
+
+  if (rules.length > 0) {
+    lines.push(`${indent}  Limits: ${rules.join("; ")}.`);
+  }
+
   // If this is a nested object type, include nested schema context
   if (field.type.kind === "object" && bundle) {
     const nested = bundle.schemas[field.type.nestedSchemaId];
-    if (nested) {
+    if (nested && !visiting.has(nested.id)) {
+      visiting.add(nested.id);
       lines.push(`${indent}  [${nested.id}: ${nested.description}]`);
       for (const nestedField of nested.fields) {
         lines.push(
-          ...buildFieldContext(nestedField, fieldPath, bundle, depth + 1),
+          ...buildFieldContext(
+            nestedField,
+            fieldPath,
+            bundle,
+            depth + 1,
+            options,
+            visiting,
+          ),
         );
       }
+      visiting.delete(nested.id);
     }
   }
 
   // If this is an array of objects, include item schema context
   if (field.type.kind === "array" && field.type.items.kind === "object" && bundle) {
     const nested = bundle.schemas[field.type.items.nestedSchemaId];
-    if (nested) {
+    if (nested && !visiting.has(nested.id)) {
+      visiting.add(nested.id);
       lines.push(`${indent}  [Array of ${nested.id}: ${nested.description}]`);
       for (const nestedField of nested.fields) {
         lines.push(
-          ...buildFieldContext(nestedField, `${fieldPath}[]`, bundle, depth + 1),
+          ...buildFieldContext(
+            nestedField,
+            `${fieldPath}[]`,
+            bundle,
+            depth + 1,
+            options,
+            visiting,
+          ),
         );
       }
+      visiting.delete(nested.id);
     }
   }
 
@@ -54,6 +179,7 @@ function buildFieldContext(
 export function buildPrompt(
   schema: RuntimeSchema,
   bundle?: SchemaBundle,
+  options: PromptOptions = {},
 ): string {
   const lines: string[] = [
     "You are a semantic coercion engine. Your task is to extract structured data from the user's input.",
@@ -64,8 +190,9 @@ export function buildPrompt(
     "Fields:",
   ];
 
+  const visiting = new Set<string>([schema.id]);
   for (const field of schema.fields) {
-    lines.push(...buildFieldContext(field, "", bundle, 0));
+    lines.push(...buildFieldContext(field, "", bundle, 0, options, visiting));
   }
 
   lines.push("");
@@ -74,6 +201,7 @@ export function buildPrompt(
   lines.push("- Use null for optional fields that cannot be determined from the input.");
   lines.push("- Required fields must always have a valid, non-null value.");
   lines.push("- Interpret the user's input semantically — infer meaning, don't just pattern match.");
+  lines.push("- Respect every stated limit exactly; truncate or drop lower-priority content to stay within it.");
   lines.push("- Return only the structured JSON output matching the schema.");
 
   return lines.join("\n");

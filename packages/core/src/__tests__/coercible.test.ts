@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { sembl, Coercible } from "../coerce/coercible.js";
 import { SemblConfig, resolveConfig } from "../coerce/config.js";
+import { EnumResolutionError } from "../errors/enum-resolution-error.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "../provider/types.js";
 import type { RuntimeSchema } from "../schema/types.js";
 
@@ -176,5 +177,61 @@ describe("SemblConfig", () => {
 
     const result = await sembl("test").coerceTo<{ name: string }>(profileSchema);
     expect(result.name).toBe("Global");
+  });
+
+  it("per-call enumResolver overrides the global one", () => {
+    const globalResolver = () => ["global"];
+    const callResolver = () => ["call"];
+    SemblConfig.configure({ provider: createMockProvider({}), enumResolver: globalResolver });
+
+    expect(resolveConfig().enumResolver).toBe(globalResolver);
+    expect(resolveConfig({ enumResolver: callResolver }).enumResolver).toBe(callResolver);
+  });
+});
+
+describe("Coercible carries the enum resolver through a chain", () => {
+  const taggedSchema: RuntimeSchema = {
+    id: "Tagged",
+    description: "A tagged thing.",
+    fields: [
+      {
+        name: "tag",
+        description: "Tag",
+        type: { kind: "dynamicEnum", sourceId: "tags" },
+        required: true,
+      },
+    ],
+  };
+
+  it("resolves sources at every step of the chain", async () => {
+    const resolvedFor: string[] = [];
+    const provider: Provider = {
+      async complete(request: ProviderRequest): Promise<ProviderResponse> {
+        resolvedFor.push(JSON.stringify(request.resolvedEnums));
+        return { data: { tag: "alpha", name: "Alice", action: "go", target: "there" } };
+      },
+    };
+
+    SemblConfig.configure({ provider, enumResolver: () => ["alpha", "beta"] });
+
+    await sembl("input").coerceTo(taggedSchema).partialCoerceTo(taggedSchema);
+
+    expect(resolvedFor).toEqual([
+      JSON.stringify({ tags: ["alpha", "beta"] }),
+      JSON.stringify({ tags: ["alpha", "beta"] }),
+    ]);
+  });
+
+  it("rejects the chain when a required source cannot be resolved", async () => {
+    SemblConfig.configure({
+      provider: createMockProvider({ tag: "alpha" }),
+      enumResolver: () => {
+        throw new Error("CMS unreachable");
+      },
+    });
+
+    await expect(sembl("input").coerceTo(taggedSchema)).rejects.toThrow(
+      EnumResolutionError,
+    );
   });
 });

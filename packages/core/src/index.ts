@@ -17,6 +17,15 @@ export type {
   JsonSchemaDialect,
   JsonSchemaOptions,
 } from "./schema/json-schema.js";
+export {
+  resolveEnumSources,
+  collectEnumSources,
+} from "./schema/resolve-enum-sources.js";
+export type {
+  EnumResolution,
+  EnumSourceFailure,
+  EnumSourceUsage,
+} from "./schema/resolve-enum-sources.js";
 export { SchemaRegistry } from "./schema/registry.js";
 
 // Decorators
@@ -28,6 +37,7 @@ export type { DeepPartial } from "./types/deep-partial.js";
 // Errors
 export { CoerceError } from "./errors/coerce-error.js";
 export type { FieldValidationIssue } from "./errors/coerce-error.js";
+export { EnumResolutionError } from "./errors/enum-resolution-error.js";
 
 // Provider types
 export type {
@@ -48,9 +58,11 @@ export type { SemblGlobalConfig, SemblCallConfig } from "./coerce/config.js";
 
 // Prompt builder
 export { buildPrompt } from "./coerce/prompt-builder.js";
+export type { PromptOptions } from "./coerce/prompt-builder.js";
 
 // Validation
 export { validateStrict, validatePartial } from "./coerce/validator.js";
+export type { ValidationOptions } from "./coerce/validator.js";
 
 // Tracing
 export type {

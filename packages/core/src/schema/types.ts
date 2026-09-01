@@ -1,25 +1,25 @@
 /**
- * Bounds a field's legal values, beyond its type.
+ * Bounds a field's value beyond its type.
  *
- * Constraints are advisory to the model (they are rendered into the prompt and,
- * where the dialect supports it, into the JSON Schema) and authoritative to the
- * validator, which reports a violation as a `FieldValidationIssue` like any
- * type mismatch.
+ * Which keys apply depends on the value being checked, not on the declared
+ * field type: string bounds apply to strings, numeric bounds to numbers, and
+ * item bounds to arrays. On an array field the string/number bounds apply to
+ * each element, so `string[]` can carry both `maxItems` and `maxLength`.
  */
 export interface FieldConstraints {
-  /** Maximum string length, inclusive. */
+  /** Maximum string length, inclusive */
   maxLength?: number;
-  /** Minimum string length, inclusive. */
+  /** Minimum string length, inclusive */
   minLength?: number;
-  /** Minimum numeric value, inclusive. */
-  min?: number;
-  /** Maximum numeric value, inclusive. */
-  max?: number;
-  /** Minimum array length, inclusive. */
+  /** Minimum numeric value, inclusive */
+  minimum?: number;
+  /** Maximum numeric value, inclusive */
+  maximum?: number;
+  /** Minimum number of array entries, inclusive */
   minItems?: number;
-  /** Maximum array length, inclusive. */
+  /** Maximum number of array entries, inclusive */
   maxItems?: number;
-  /** Regular expression source the value must match (no delimiters, no flags). */
+  /** Regular expression source a string value must match */
   pattern?: string;
 }
 

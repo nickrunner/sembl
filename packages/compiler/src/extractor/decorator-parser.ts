@@ -21,8 +21,8 @@ const CONSTRAINT_KEYS: Record<
 > = {
   maxLength: "number",
   minLength: "number",
-  min: "number",
-  max: "number",
+  minimum: "number",
+  maximum: "number",
   minItems: "number",
   maxItems: "number",
   pattern: "string",

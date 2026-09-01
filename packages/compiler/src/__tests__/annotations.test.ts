@@ -27,8 +27,8 @@ describe("@Constrain", () => {
       minLength: 3,
     });
     expect(field("Listing", "nightlyRate").constraints).toEqual({
-      min: 0,
-      max: 10000,
+      minimum: 0,
+      maximum: 10000,
     });
     expect(field("Listing", "photos").constraints).toEqual({
       minItems: 1,
@@ -41,8 +41,8 @@ describe("@Constrain", () => {
 
   it("reads a negative bound, which is a prefix minus rather than a literal", () => {
     expect(field("Listing", "latitude").constraints).toEqual({
-      min: -90,
-      max: 90,
+      minimum: -90,
+      maximum: 90,
     });
   });
 

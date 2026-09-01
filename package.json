@@ -5,7 +5,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "pnpm -r exec tsc --noEmit"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
