@@ -70,6 +70,32 @@ If a source backing a **required** field fails to resolve, coercion throws
 `EnumResolutionError` rather than quietly widening the field to a free-form
 string. A source backing only optional fields widens and records a trace event.
 
+## Repair and provenance
+
+`maxRepairAttempts` sends validation failures back to the model with its own
+rejected output and the reasons. It only spends a call when validation actually
+failed:
+
+```ts
+await coerce<Listing>(scrapedHtml, { provider, schema, maxRepairAttempts: 1 });
+```
+
+`partialCoerceWithProvenance` (and its strict sibling) additionally reports how
+well the input supported each field, so a review UI can flag the guesses:
+
+```ts
+const { data, provenance } = await partialCoerceWithProvenance<Listing>(html, {
+  provider,
+  schema,
+});
+// provenance.name → { confidence: "high", evidence: "the Sea Cabin sleeps 6" }
+```
+
+Provenance works by requesting a derived schema that wraps each field as
+`{ value, confidence, evidence }`, then splitting the response apart and
+validating the values against your original schema — no provider is involved.
+Top-level fields only.
+
 ## Tracing
 
 Pass `traceSinks` to see prompt construction, schema build, enum resolution,

@@ -15,6 +15,8 @@ export interface SemblGlobalConfig {
   enumResolver?: EnumResolver;
   /** Optional trace sinks */
   traceSinks?: TraceSink[];
+  /** How many times to send validation failures back for correction. Default 0. */
+  maxRepairAttempts?: number;
 }
 
 /**
@@ -29,6 +31,8 @@ export interface SemblCallConfig {
   enumResolver?: EnumResolver;
   /** Override trace sinks for this call */
   traceSinks?: TraceSink[];
+  /** Override the repair attempt budget for this call */
+  maxRepairAttempts?: number;
 }
 
 /**
@@ -39,6 +43,7 @@ export interface ResolvedConfig {
   bundle?: SchemaBundle;
   enumResolver?: EnumResolver;
   traceSinks?: TraceSink[];
+  maxRepairAttempts?: number;
 }
 
 /**
@@ -82,5 +87,6 @@ export function resolveConfig(callConfig?: SemblCallConfig): ResolvedConfig {
     bundle: callConfig?.bundle ?? global.bundle,
     enumResolver: callConfig?.enumResolver ?? global.enumResolver,
     traceSinks: callConfig?.traceSinks ?? global.traceSinks,
+    maxRepairAttempts: callConfig?.maxRepairAttempts ?? global.maxRepairAttempts,
   };
 }

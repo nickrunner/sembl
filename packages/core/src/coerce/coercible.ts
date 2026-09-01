@@ -21,6 +21,11 @@ function serialize(value: unknown): string {
  * serializing the previous result as the input string for the next step.
  *
  * Implements `PromiseLike<T>` so it can be `await`ed directly.
+ *
+ * There is no provenance variant here: an intermediate link's annotations
+ * would be serialized into the next call's input and lost, and a terminal one
+ * would have to return a different shape than every other link. Use
+ * `coerceWithProvenance` / `partialCoerceWithProvenance` directly instead.
  */
 export class Coercible<T> implements PromiseLike<T> {
   constructor(
@@ -28,19 +33,25 @@ export class Coercible<T> implements PromiseLike<T> {
     private readonly _config: ResolvedConfig,
   ) {}
 
+  /** The per-call options every link in the chain shares. */
+  private _optionsFor(schema: RuntimeSchema) {
+    return {
+      provider: this._config.provider,
+      schema,
+      bundle: this._config.bundle,
+      enumResolver: this._config.enumResolver,
+      traceSinks: this._config.traceSinks,
+      maxRepairAttempts: this._config.maxRepairAttempts,
+    };
+  }
+
   /**
    * Chain a full coercion to a new schema.
    * The current value is serialized and used as input for the next LLM call.
    */
   coerceTo<U>(schema: RuntimeSchema): Coercible<U> {
     const next = this._promise.then((value) =>
-      coerce<U>(serialize(value), {
-        provider: this._config.provider,
-        schema,
-        bundle: this._config.bundle,
-        enumResolver: this._config.enumResolver,
-        traceSinks: this._config.traceSinks,
-      }),
+      coerce<U>(serialize(value), this._optionsFor(schema)),
     );
     return new Coercible<U>(next, this._config);
   }
@@ -51,13 +62,7 @@ export class Coercible<T> implements PromiseLike<T> {
    */
   partialCoerceTo<U>(schema: RuntimeSchema): Coercible<Partial<U>> {
     const next = this._promise.then((value) =>
-      partialCoerce<U>(serialize(value), {
-        provider: this._config.provider,
-        schema,
-        bundle: this._config.bundle,
-        enumResolver: this._config.enumResolver,
-        traceSinks: this._config.traceSinks,
-      }),
+      partialCoerce<U>(serialize(value), this._optionsFor(schema)),
     );
     return new Coercible<Partial<U>>(next, this._config);
   }

@@ -48,8 +48,28 @@ export type {
 } from "./provider/types.js";
 
 // Coerce API
-export { coerce, partialCoerce } from "./coerce/coerce.js";
+export {
+  coerce,
+  partialCoerce,
+  coerceWithProvenance,
+  partialCoerceWithProvenance,
+} from "./coerce/coerce.js";
 export type { CoerceOptions } from "./coerce/coerce.js";
+
+// Provenance
+export {
+  toProvenanceSchema,
+  splitProvenance,
+  PROVENANCE_INSTRUCTIONS,
+} from "./coerce/provenance.js";
+export type {
+  FieldConfidence,
+  FieldProvenance,
+  ProvenanceResult,
+} from "./coerce/provenance.js";
+
+// Repair
+export { buildRepairInput } from "./coerce/repair.js";
 
 // Fluent API
 export { sembl, Coercible } from "./coerce/coercible.js";

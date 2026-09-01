@@ -159,6 +159,54 @@ const intent = await sembl(conversation)
   .coerceTo(intentSchema);         // → what they're actually asking for
 ```
 
+## Repairing a bad extraction
+
+Messy input produces invalid output sometimes. Rather than losing the whole
+extraction, hand the model its own rejected output and the reasons:
+
+```ts
+await coerce<Listing>(scrapedHtml, { provider, schema, maxRepairAttempts: 1 });
+```
+
+A repair costs an extra call only when validation actually failed, so the happy
+path is untouched. It's off by default because it also multiplies worst-case
+latency — but for extraction from scraped HTML or third-party payloads, `1` is
+usually the right setting.
+
+## Knowing what to trust
+
+A pre-filled form needs to distinguish what was read from the input from what
+was guessed, so it can flag the guesses for review:
+
+```ts
+const { data, provenance } = await partialCoerceWithProvenance<Listing>(listingHtml, {
+  provider,
+  schema: listingSchema,
+});
+
+// data       → { name: "Sea Cabin", sleeps: 6 }
+// provenance → {
+//   name:   { confidence: "high",   evidence: "the Sea Cabin sleeps 6" },
+//   sleeps: { confidence: "medium", evidence: "sleeps 6" },
+// }
+```
+
+Confidence is a three-level scale rather than a number: models are poorly
+calibrated at producing a 0–1 score, and a review UI only needs to decide
+whether to flag a field anyway. `evidence` is absent when the value was
+inferred rather than read — which is itself the signal worth showing.
+
+Under the hood this asks for a derived schema where each field is wrapped as
+`{ value, confidence, evidence }`, then splits the response back apart and
+validates the values against your original schema. No provider knows anything
+about it. Only top-level fields are annotated; a nested object keeps its
+ordinary shape inside `value`.
+
+It costs a larger schema and a longer response, so reach for it where a human
+reviews the result rather than on a hot path. It isn't available on the fluent
+chain — an intermediate link's annotations would be serialized into the next
+call and lost.
+
 ## Providers
 
 `Provider` is a one-method interface — `complete(request) => Promise<response>`
@@ -260,11 +308,6 @@ publish` here would ship manifests nobody can install.
 Early. The shape of the API is settling but nothing is 1.0. Known gaps, roughly
 in the order they bite:
 
-- **No repair loop.** A validation failure throws; it doesn't feed the issues
-  back to the model for a second attempt.
-- **No confidence or provenance.** Results don't say which fields were read
-  straight out of the input and which were inferred — which is what a pre-fill
-  UI wants in order to flag the guesses for review.
 - **Classes only.** The compiler reads decorated classes; plain `interface`s
   and `type`s are invisible to it.
 - **Constraints reach OpenAI through the prompt, not the schema.** Strict mode
@@ -275,3 +318,7 @@ in the order they bite:
   `@sembl/core` for the one place to change if you verify otherwise.
 - **No index-signature types.** A `Record<string, string>` has no `FieldType`
   equivalent; the compiler warns rather than mistyping it.
+- **Provenance is top-level only.** A nested object is annotated as a whole,
+  not per leaf.
+- **Repair is single-turn.** The correction travels as user text rather than a
+  real assistant turn, because the `Provider` interface is single-turn.
