@@ -3,11 +3,31 @@ import type { RuntimeSchema, FieldDescriptor, FieldType, SchemaBundle } from "./
 type JsonSchema = Record<string, unknown>;
 
 /**
+ * JSON Schema flavour to emit.
+ *
+ * - `"openai-strict"` — OpenAI structured-output constraints: every property
+ *   listed in `required`, optional fields expressed as `anyOf: [T, null]`.
+ * - `"standard"` — ordinary JSON Schema: only genuinely required fields are
+ *   listed in `required`, optional fields are simply omitted from it. This is
+ *   what Anthropic tool `input_schema` (and most other consumers) expect.
+ *
+ * Both flavours inline nested schemas (no `$ref`) and set
+ * `additionalProperties: false`.
+ */
+export type JsonSchemaDialect = "openai-strict" | "standard";
+
+export interface JsonSchemaOptions {
+  /** Defaults to `"openai-strict"` for backwards compatibility. */
+  dialect?: JsonSchemaDialect;
+}
+
+/**
  * Convert a FieldType to a JSON Schema type definition.
  */
 function fieldTypeToJsonSchema(
   fieldType: FieldType,
-  bundle?: SchemaBundle,
+  bundle: SchemaBundle | undefined,
+  dialect: JsonSchemaDialect,
 ): JsonSchema {
   switch (fieldType.kind) {
     case "string":
@@ -19,7 +39,7 @@ function fieldTypeToJsonSchema(
     case "array":
       return {
         type: "array",
-        items: fieldTypeToJsonSchema(fieldType.items, bundle),
+        items: fieldTypeToJsonSchema(fieldType.items, bundle, dialect),
       };
     case "enum":
       return { type: "string", enum: fieldType.values };
@@ -29,6 +49,7 @@ function fieldTypeToJsonSchema(
         return runtimeSchemaToJsonSchema(
           bundle.schemas[fieldType.nestedSchemaId],
           bundle,
+          { dialect },
         );
       }
       return { type: "object", additionalProperties: false };
@@ -41,9 +62,10 @@ function fieldTypeToJsonSchema(
  */
 function fieldToJsonSchema(
   field: FieldDescriptor,
-  bundle?: SchemaBundle,
+  bundle: SchemaBundle | undefined,
+  dialect: JsonSchemaDialect,
 ): JsonSchema {
-  const base = fieldTypeToJsonSchema(field.type, bundle);
+  const base = fieldTypeToJsonSchema(field.type, bundle, dialect);
   return {
     ...base,
     description: field.description,
@@ -52,33 +74,36 @@ function fieldToJsonSchema(
 
 /**
  * Convert a RuntimeSchema to a JSON Schema object.
- * Follows OpenAI strict mode constraints:
- * - All properties in `required` array
- * - Optional fields use anyOf: [type, { type: "null" }]
- * - additionalProperties: false on every object
- * - Everything inlined (no $ref)
+ *
+ * The shape depends on {@link JsonSchemaDialect}; see its docs. Nested schemas
+ * are always inlined (no `$ref`) and every object gets
+ * `additionalProperties: false`.
  */
 export function runtimeSchemaToJsonSchema(
   schema: RuntimeSchema,
   bundle?: SchemaBundle,
+  options?: JsonSchemaOptions,
 ): JsonSchema {
+  const dialect = options?.dialect ?? "openai-strict";
   const properties: Record<string, JsonSchema> = {};
   const required: string[] = [];
 
   for (const field of schema.fields) {
-    const fieldSchema = fieldToJsonSchema(field, bundle);
+    const fieldSchema = fieldToJsonSchema(field, bundle, dialect);
 
-    if (field.required) {
-      properties[field.name] = fieldSchema;
+    if (dialect === "openai-strict") {
+      // Optional fields are nullable rather than absent, and ALL properties
+      // must appear in `required`.
+      properties[field.name] = field.required
+        ? fieldSchema
+        : { anyOf: [fieldSchema, { type: "null" }] };
+      required.push(field.name);
     } else {
-      // OpenAI strict mode: optional fields use anyOf with null
-      properties[field.name] = {
-        anyOf: [fieldSchema, { type: "null" }],
-      };
+      properties[field.name] = fieldSchema;
+      if (field.required) {
+        required.push(field.name);
+      }
     }
-
-    // OpenAI strict mode: ALL properties must be in required
-    required.push(field.name);
   }
 
   return {
@@ -101,6 +126,8 @@ export function toOpenAIJsonSchema(
   return {
     name: schema.id,
     strict: true,
-    schema: runtimeSchemaToJsonSchema(schema, bundle),
+    schema: runtimeSchemaToJsonSchema(schema, bundle, {
+      dialect: "openai-strict",
+    }),
   };
 }

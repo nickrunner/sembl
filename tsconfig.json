@@ -4,6 +4,7 @@
     { "path": "packages/core" },
     { "path": "packages/compiler" },
     { "path": "packages/provider-openai" },
+    { "path": "packages/provider-anthropic" },
     { "path": "packages/examples" }
   ]
 }

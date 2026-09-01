@@ -1,4 +1,4 @@
-import type { RuntimeSchema } from "../schema/types.js";
+import type { RuntimeSchema, SchemaBundle } from "../schema/types.js";
 
 /**
  * Configuration for a provider.
@@ -24,6 +24,16 @@ export interface ProviderRequest {
   jsonSchema: Record<string, unknown>;
   /** The runtime schema being targeted */
   schema: RuntimeSchema;
+  /**
+   * Bundle used to resolve nested schemas, when one was supplied.
+   *
+   * `jsonSchema` above is already built against this bundle in the
+   * OpenAI-strict dialect. Providers whose API wants a different dialect
+   * should re-derive from `schema` + `bundle` rather than reaching for
+   * `schema` alone — dropping the bundle silently emits nested objects with
+   * no properties.
+   */
+  bundle?: SchemaBundle;
 }
 
 /**

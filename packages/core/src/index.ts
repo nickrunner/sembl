@@ -11,6 +11,10 @@ export {
   runtimeSchemaToJsonSchema,
   toOpenAIJsonSchema,
 } from "./schema/json-schema.js";
+export type {
+  JsonSchemaDialect,
+  JsonSchemaOptions,
+} from "./schema/json-schema.js";
 export { SchemaRegistry } from "./schema/registry.js";
 
 // Decorators

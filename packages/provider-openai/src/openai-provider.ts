@@ -19,7 +19,7 @@ export class OpenAIProvider implements Provider {
   }
 
   async complete(request: ProviderRequest): Promise<ProviderResponse> {
-    const responseFormat = toResponseFormat(request.schema);
+    const responseFormat = toResponseFormat(request.schema, request.bundle);
 
     const completion = await this.client.chat.completions.create({
       model: this.config.model,

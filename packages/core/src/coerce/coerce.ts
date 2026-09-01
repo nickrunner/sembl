@@ -51,6 +51,7 @@ export async function coerce<T>(
       userInput: input,
       jsonSchema,
       schema,
+      bundle,
     });
     tracer.addEvent(llmSpan, "responseReceived", { usage: response.usage });
     tracer.endSpan(llmSpan);
@@ -91,6 +92,7 @@ export async function partialCoerce<T>(
       userInput: input,
       jsonSchema,
       schema,
+      bundle,
     });
 
     const issues = validatePartial(response.data, schema, bundle);
