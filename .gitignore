@@ -5,3 +5,6 @@ dist/
 *.log
 coverage/
 packages/examples/src/generated/
+
+# Agent worktrees
+.claude/worktrees/
