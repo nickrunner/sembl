@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { OpenAIProvider } from "../openai-provider.js";
-import type { RuntimeSchema } from "@sembl/core";
+import type { RuntimeSchema, SchemaBundle } from "@sembl/core";
 
 // Mock the openai module
 vi.mock("openai", () => {
@@ -84,5 +84,40 @@ describe("OpenAIProvider", () => {
         schema: testSchema,
       }),
     ).rejects.toThrow("no content");
+  });
+
+  it("resolves nested schemas from the request bundle", async () => {
+    const profileSchema: RuntimeSchema = {
+      id: "Profile",
+      description: "A profile.",
+      fields: [
+        {
+          name: "address",
+          description: "Where they live",
+          type: { kind: "object", nestedSchemaId: "Address" },
+          required: true,
+        },
+      ],
+    };
+    const bundle: SchemaBundle = {
+      schemas: { Address: testSchema, Profile: profileSchema },
+    };
+
+    const provider = new OpenAIProvider({ model: "gpt-4o", apiKey: "test-key" });
+    const mockCreate = (provider as unknown as { client: { chat: { completions: { create: ReturnType<typeof vi.fn> } } } }).client.chat.completions.create;
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({ address: { city: "Berlin", zip: null } }) } }],
+    });
+
+    await provider.complete({
+      systemPrompt: "test",
+      userInput: "test",
+      jsonSchema: {},
+      schema: profileSchema,
+      bundle,
+    });
+
+    const sent = mockCreate.mock.calls[0][0].response_format.json_schema.schema;
+    expect(Object.keys(sent.properties.address.properties)).toEqual(["city", "zip"]);
   });
 });

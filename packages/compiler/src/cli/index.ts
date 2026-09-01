@@ -14,12 +14,16 @@ program
   .requiredOption("-i, --input <path>", "Input directory containing decorated schema classes")
   .requiredOption("-o, --output <path>", "Output directory for generated .schema.ts files")
   .option("--tsconfig <path>", "Path to tsconfig.json")
+  .option("--strict", "Exit non-zero if extraction produced any warnings")
   .action(async (options) => {
-    await extractCommand({
+    const result = await extractCommand({
       input: options.input,
       output: options.output,
       tsconfig: options.tsconfig,
+      strict: options.strict,
     });
+    // Set the code rather than exiting, so buffered stdout/stderr still flush.
+    process.exitCode = result.exitCode;
   });
 
 program.parse();

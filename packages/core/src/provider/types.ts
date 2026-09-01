@@ -1,4 +1,5 @@
-import type { RuntimeSchema } from "../schema/types.js";
+import type { RuntimeSchema, SchemaBundle } from "../schema/types.js";
+import type { ResolvedEnums } from "../schema/enum-source.js";
 
 /**
  * Configuration for a provider.
@@ -24,6 +25,51 @@ export interface ProviderRequest {
   jsonSchema: Record<string, unknown>;
   /** The runtime schema being targeted */
   schema: RuntimeSchema;
+  /**
+   * Bundle used to resolve nested schemas, when one was supplied.
+   *
+   * `jsonSchema` above is already built against this bundle in the
+   * OpenAI-strict dialect. Providers whose API wants a different dialect
+   * should re-derive from `schema` + `bundle` rather than reaching for
+   * `schema` alone — dropping the bundle silently emits nested objects with
+   * no properties.
+   */
+  bundle?: SchemaBundle;
+  /**
+   * Legal values for the schema's `dynamicEnum` sources, already resolved.
+   * A provider that re-derives its own JSON Schema must pass these along —
+   * dropping them silently widens those fields back to free-form strings.
+   */
+  resolvedEnums?: ResolvedEnums;
+}
+
+/**
+ * Token accounting for a single provider call.
+ *
+ * The cache fields are reported as the provider reports them, and providers
+ * disagree about whether cached tokens also appear in `promptTokens` — so read
+ * them as an effectiveness signal, not as terms to add up. Each provider's
+ * README states which convention it follows.
+ */
+export interface ProviderUsage {
+  /** Input tokens, as the provider counts them. */
+  promptTokens: number;
+  /** Output tokens generated. */
+  completionTokens: number;
+  /** `promptTokens + completionTokens`. */
+  totalTokens: number;
+  /**
+   * Input tokens served from a prompt cache, when the provider reports it.
+   * Growing to cover the stable prefix across a batch is the signal that
+   * caching is working; a run of zeroes means it is not.
+   */
+  cacheReadTokens?: number;
+  /**
+   * Input tokens written to a prompt cache, when the provider reports it.
+   * Expect this on the first call of a batch and near zero afterwards; a
+   * write on every call means the cached prefix is being invalidated.
+   */
+  cacheWriteTokens?: number;
 }
 
 /**
@@ -33,11 +79,7 @@ export interface ProviderResponse {
   /** The parsed structured output */
   data: Record<string, unknown>;
   /** Raw response metadata for tracing */
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  usage?: ProviderUsage;
 }
 
 /**

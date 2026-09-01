@@ -1,5 +1,6 @@
 import type { Provider } from "../provider/types.js";
 import type { SchemaBundle } from "../schema/types.js";
+import type { EnumResolver } from "../schema/enum-source.js";
 import type { TraceSink } from "../tracing/types.js";
 
 /**
@@ -10,8 +11,12 @@ export interface SemblGlobalConfig {
   provider?: Provider;
   /** Optional bundle for resolving nested schemas */
   bundle?: SchemaBundle;
+  /** Optional resolver for @ValuesFrom enum sources */
+  enumResolver?: EnumResolver;
   /** Optional trace sinks */
   traceSinks?: TraceSink[];
+  /** How many times to send validation failures back for correction. Default 0. */
+  maxRepairAttempts?: number;
 }
 
 /**
@@ -22,8 +27,12 @@ export interface SemblCallConfig {
   provider?: Provider;
   /** Override the bundle for this call */
   bundle?: SchemaBundle;
+  /** Override the enum source resolver for this call */
+  enumResolver?: EnumResolver;
   /** Override trace sinks for this call */
   traceSinks?: TraceSink[];
+  /** Override the repair attempt budget for this call */
+  maxRepairAttempts?: number;
 }
 
 /**
@@ -32,7 +41,9 @@ export interface SemblCallConfig {
 export interface ResolvedConfig {
   provider: Provider;
   bundle?: SchemaBundle;
+  enumResolver?: EnumResolver;
   traceSinks?: TraceSink[];
+  maxRepairAttempts?: number;
 }
 
 /**
@@ -74,6 +85,8 @@ export function resolveConfig(callConfig?: SemblCallConfig): ResolvedConfig {
   return {
     provider,
     bundle: callConfig?.bundle ?? global.bundle,
+    enumResolver: callConfig?.enumResolver ?? global.enumResolver,
     traceSinks: callConfig?.traceSinks ?? global.traceSinks,
+    maxRepairAttempts: callConfig?.maxRepairAttempts ?? global.maxRepairAttempts,
   };
 }

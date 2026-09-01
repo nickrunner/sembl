@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for npm provenance: the OIDC token is what attests the
+      # published tarball to this workflow run.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm test
+
+      - run: pnpm lint
+
+      # A tag that disagrees with the package versions would publish something
+      # nobody asked for, so fail before anything is pushed to the registry.
+      - name: Verify tag matches package versions
+        run: node scripts/check-release-version.mjs "${GITHUB_REF_NAME#v}"
+
+      # workspace:* dependencies are rewritten to the real version on publish.
+      - name: Publish
+        run: pnpm -r publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"

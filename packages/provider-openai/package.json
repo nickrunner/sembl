@@ -1,25 +1,60 @@
 {
   "name": "@sembl/provider-openai",
   "version": "0.1.0",
+  "description": "OpenAI provider for SEMBL, using structured outputs.",
+  "keywords": [
+    "llm",
+    "structured-output",
+    "openai",
+    "gpt",
+    "extraction"
+  ],
+  "license": "MIT",
+  "author": "Sembl contributors",
+  "homepage": "https://github.com/nickrunner/sembl#readme",
+  "bugs": {
+    "url": "https://github.com/nickrunner/sembl/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickrunner/sembl.git",
+    "directory": "packages/provider-openai"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch"
   },
   "dependencies": {
-    "@sembl/core": "workspace:*",
-    "openai": "^4.0.0"
+    "@sembl/core": "workspace:*"
   },
   "devDependencies": {
+    "openai": "^4.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.5.0"
+  },
+  "peerDependencies": {
+    "openai": ">=4.0.0"
   }
 }
