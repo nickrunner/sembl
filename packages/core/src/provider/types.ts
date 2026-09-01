@@ -1,4 +1,5 @@
 import type { RuntimeSchema } from "../schema/types.js";
+import type { ResolvedEnums } from "../schema/enum-source.js";
 
 /**
  * Configuration for a provider.
@@ -24,6 +25,8 @@ export interface ProviderRequest {
   jsonSchema: Record<string, unknown>;
   /** The runtime schema being targeted */
   schema: RuntimeSchema;
+  /** Legal values for the schema's dynamic enum sources, if any resolved */
+  resolvedEnums?: ResolvedEnums;
 }
 
 /**

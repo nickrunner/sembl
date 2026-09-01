@@ -38,6 +38,7 @@ export class Coercible<T> implements PromiseLike<T> {
         provider: this._config.provider,
         schema,
         bundle: this._config.bundle,
+        enumResolver: this._config.enumResolver,
         traceSinks: this._config.traceSinks,
       }),
     );
@@ -54,6 +55,7 @@ export class Coercible<T> implements PromiseLike<T> {
         provider: this._config.provider,
         schema,
         bundle: this._config.bundle,
+        enumResolver: this._config.enumResolver,
         traceSinks: this._config.traceSinks,
       }),
     );

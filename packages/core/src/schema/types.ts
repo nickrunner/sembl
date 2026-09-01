@@ -7,7 +7,33 @@ export type FieldType =
   | { kind: "boolean" }
   | { kind: "array"; items: FieldType }
   | { kind: "object"; nestedSchemaId: string }
-  | { kind: "enum"; values: string[] };
+  | { kind: "enum"; values: string[] }
+  | { kind: "dynamicEnum"; sourceId: string };
+
+/**
+ * Bounds a field's value beyond its type.
+ *
+ * Which keys apply depends on the value being checked, not on the declared
+ * field type: string bounds apply to strings, numeric bounds to numbers, and
+ * item bounds to arrays. On an array field the string/number bounds apply to
+ * each element, so `string[]` can carry both `maxItems` and `maxLength`.
+ */
+export interface FieldConstraints {
+  /** Maximum string length, inclusive */
+  maxLength?: number;
+  /** Minimum string length, inclusive */
+  minLength?: number;
+  /** Minimum numeric value, inclusive */
+  minimum?: number;
+  /** Maximum numeric value, inclusive */
+  maximum?: number;
+  /** Minimum number of array entries, inclusive */
+  minItems?: number;
+  /** Maximum number of array entries, inclusive */
+  maxItems?: number;
+  /** Regular expression source a string value must match */
+  pattern?: string;
+}
 
 /**
  * Describes a single field in a schema.
@@ -21,6 +47,8 @@ export interface FieldDescriptor {
   type: FieldType;
   /** Whether this field is required (definite assignment) */
   required: boolean;
+  /** Value bounds from @Constrain decorator */
+  constraints?: FieldConstraints;
 }
 
 /**
