@@ -44,17 +44,42 @@ export interface ProviderRequest {
 }
 
 /**
+ * Token accounting for a single provider call.
+ *
+ * The cache fields are reported as the provider reports them, and providers
+ * disagree about whether cached tokens also appear in `promptTokens` — so read
+ * them as an effectiveness signal, not as terms to add up. Each provider's
+ * README states which convention it follows.
+ */
+export interface ProviderUsage {
+  /** Input tokens, as the provider counts them. */
+  promptTokens: number;
+  /** Output tokens generated. */
+  completionTokens: number;
+  /** `promptTokens + completionTokens`. */
+  totalTokens: number;
+  /**
+   * Input tokens served from a prompt cache, when the provider reports it.
+   * Growing to cover the stable prefix across a batch is the signal that
+   * caching is working; a run of zeroes means it is not.
+   */
+  cacheReadTokens?: number;
+  /**
+   * Input tokens written to a prompt cache, when the provider reports it.
+   * Expect this on the first call of a batch and near zero afterwards; a
+   * write on every call means the cached prefix is being invalidated.
+   */
+  cacheWriteTokens?: number;
+}
+
+/**
  * Response from a provider.
  */
 export interface ProviderResponse {
   /** The parsed structured output */
   data: Record<string, unknown>;
   /** Raw response metadata for tracing */
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  usage?: ProviderUsage;
 }
 
 /**
