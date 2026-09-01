@@ -43,6 +43,10 @@ function fieldTypeToJsonSchema(
       };
     case "enum":
       return { type: "string", enum: fieldType.values };
+    case "dynamicEnum":
+      // Legal values are supplied at coercion time; until they are resolved
+      // this is an unconstrained string.
+      return { type: "string" };
     case "object": {
       // If we have a bundle and can find the nested schema, inline it
       if (bundle && bundle.schemas[fieldType.nestedSchemaId]) {

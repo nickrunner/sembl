@@ -53,6 +53,17 @@ function validateType(
         });
       }
       break;
+    case "dynamicEnum":
+      // Legal values are supplied at coercion time; without them only the
+      // underlying string type can be checked here.
+      if (typeof value !== "string") {
+        issues.push({
+          path,
+          message: `Expected string, got ${typeof value}`,
+          received: value,
+        });
+      }
+      break;
     case "array":
       if (!Array.isArray(value)) {
         issues.push({

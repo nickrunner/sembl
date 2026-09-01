@@ -1,10 +1,12 @@
 // Schema types
 export type {
   FieldType,
+  FieldConstraints,
   FieldDescriptor,
   RuntimeSchema,
   SchemaBundle,
 } from "./schema/types.js";
+export type { EnumResolver, ResolvedEnums } from "./schema/enum-source.js";
 
 // Schema utilities
 export {
@@ -18,7 +20,7 @@ export type {
 export { SchemaRegistry } from "./schema/registry.js";
 
 // Decorators
-export { Schema, Describe } from "./decorators.js";
+export { Schema, Describe, Constrain, ValuesFrom } from "./decorators.js";
 
 // Utility types
 export type { DeepPartial } from "./types/deep-partial.js";
