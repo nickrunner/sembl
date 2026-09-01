@@ -1,14 +1,49 @@
 {
   "name": "@sembl/core",
   "version": "0.1.0",
+  "description": "Semantic coercion for TypeScript: turn unstructured input into validated instances of your types.",
+  "keywords": [
+    "llm",
+    "structured-output",
+    "json-schema",
+    "extraction",
+    "typescript",
+    "decorators",
+    "anthropic",
+    "openai"
+  ],
+  "license": "MIT",
+  "author": "Sembl contributors",
+  "homepage": "https://github.com/nickrunner/sembl#readme",
+  "bugs": {
+    "url": "https://github.com/nickrunner/sembl/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickrunner/sembl.git",
+    "directory": "packages/core"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsup",

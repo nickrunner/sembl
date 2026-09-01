@@ -1,14 +1,47 @@
 {
   "name": "@sembl/provider-anthropic",
   "version": "0.1.0",
+  "description": "Anthropic provider for SEMBL, using forced tool calls for structured output.",
+  "keywords": [
+    "llm",
+    "structured-output",
+    "anthropic",
+    "claude",
+    "tool-use",
+    "extraction"
+  ],
+  "license": "MIT",
+  "author": "Sembl contributors",
+  "homepage": "https://github.com/nickrunner/sembl#readme",
+  "bugs": {
+    "url": "https://github.com/nickrunner/sembl/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickrunner/sembl.git",
+    "directory": "packages/provider-anthropic"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsup",

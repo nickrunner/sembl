@@ -98,10 +98,10 @@ importers:
       '@sembl/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
       openai:
         specifier: ^4.0.0
         version: 4.104.0
-    devDependencies:
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)

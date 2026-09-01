@@ -5,7 +5,8 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "vitest run",
-    "lint": "pnpm -r exec tsc --noEmit"
+    "lint": "pnpm -r exec tsc --noEmit",
+    "version:set": "node scripts/set-version.mjs"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

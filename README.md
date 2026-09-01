@@ -27,7 +27,9 @@ pnpm add @sembl/core @sembl/provider-anthropic @anthropic-ai/sdk
 pnpm add -D @sembl/compiler
 ```
 
-Swap in `@sembl/provider-openai` (plus `openai`) if that's your provider.
+Swap in `@sembl/provider-openai` (plus `openai`) if that's your provider. Both
+provider packages take their SDK as a peer dependency, so your app owns the
+version and, usually, the client instance.
 
 ## Quickstart
 
@@ -56,7 +58,32 @@ export class Address {
 
 Field types may be `string`, `number`, `boolean`, string-literal unions and
 TypeScript `enum`s (both emitted as enums), arrays of any of those, and other
-`@Schema` classes — nested or in arrays.
+`@Schema` classes — nested or in arrays. Inline anonymous object types get a
+nested schema synthesized for them.
+
+Two more decorators bound what a field may hold:
+
+```ts
+@Schema("A short-term rental listing as a host would describe it.")
+export class Listing {
+  @Describe("Display name for the listing.")
+  @Constrain({ maxLength: 40 })
+  name!: string;
+
+  @Describe("Amenities the property offers.")
+  @ValuesFrom("amenities")
+  @Constrain({ maxItems: 5 })
+  amenities!: string[];
+}
+```
+
+`@Constrain` takes lengths, numeric ranges, array sizes, and a pattern. On an
+array field the string and number bounds apply to each element, so `string[]`
+can carry both `maxItems` and `maxLength`.
+
+`@ValuesFrom` says the legal values aren't in the source tree — they come from
+a named source you resolve at coercion time. That's the shape a CMS taxonomy or
+a database enum table actually has.
 
 ### 2. Compile them
 
@@ -82,6 +109,8 @@ registry.registerBundle(bundle);
 SemblConfig.configure({
   provider: new AnthropicProvider({ model: "claude-sonnet-5", apiKey }),
   bundle: registry.toBundle(),
+  // Called once per distinct @ValuesFrom source per coercion. You own caching.
+  enumResolver: async (sourceId) => (await cms.taxonomy(sourceId)).map((d) => d.slug),
 });
 
 const profile = await sembl(
@@ -101,7 +130,13 @@ const profile = await sembl(
 
 `CoerceError.issues` is a `FieldValidationIssue[]` — `path`, `message`,
 `received` — so a form can surface per-field problems rather than one opaque
-failure.
+failure. Violated `@Constrain` bounds and values outside a resolved
+`@ValuesFrom` set are issues like any type mismatch.
+
+If a source backing a **required** field fails to resolve, both coercions throw
+`EnumResolutionError` instead of quietly widening the field to a free-form
+string — a corrupted taxonomy is not the same thing as a missing value. A
+source backing only optional fields widens and records a trace event.
 
 Both are also available as plain functions when you'd rather pass config
 explicitly than configure a global:
@@ -134,6 +169,13 @@ only the SDK it uses:
 | --------------------------- | ----------------------------------------------------- |
 | `@sembl/provider-anthropic` | forced tool call (`tool_choice: { type: "tool" }`)    |
 | `@sembl/provider-openai`    | structured outputs (`response_format: json_schema`)   |
+
+Both wrap their SDK's own retry and timeout handling rather than re-implementing
+it, and raise a typed error carrying a `kind` — `api`, `truncated`, or
+`no_output` — so a caller can tell a rate limit from a refusal from an output
+that ran out of tokens. The Anthropic provider can cache the stable prefix
+(system prompt plus tool schema) across a batch, which is where the cost goes
+when you are importing many records against one schema.
 
 Each provider owns its own JSON Schema dialect. Core emits either from a
 `RuntimeSchema`: `"openai-strict"` (every property in `required`, optional
@@ -181,14 +223,14 @@ or your own logger.
 
 ```sh
 pnpm install
-pnpm --filter @sembl/examples extract   # generated schemas are gitignored
-pnpm build
+pnpm build   # schema extraction runs as part of the examples package's build
 pnpm test
-pnpm lint                               # tsc --noEmit
+pnpm lint    # typechecks each package against its dependencies' built types
 ```
 
-The `extract` step must run before `build`: the examples package imports its
-generated bundle, and a clean checkout doesn't have one yet.
+`pnpm lint` has to follow `pnpm build`: packages are typechecked against the
+`.d.ts` their dependencies emit, so those have to exist first. CI runs exactly
+these steps.
 
 To run the demo against a live model, build, then:
 
@@ -196,19 +238,40 @@ To run the demo against a live model, build, then:
 OPENAI_API_KEY=... pnpm --filter @sembl/examples demo
 ```
 
+## Releasing
+
+Packages version in lockstep and publish from CI on a tag:
+
+```sh
+pnpm version:set 0.2.0
+git commit -am "Release 0.2.0" && git tag v0.2.0
+git push && git push --tags
+```
+
+The tag triggers a workflow that builds, tests, typechecks, verifies the tag
+matches every package version, and publishes with provenance.
+
+Publish with **pnpm**, never `npm publish` — pnpm rewrites `workspace:*`
+dependencies to real versions on the way out, and npm does not, so an `npm
+publish` here would ship manifests nobody can install.
+
 ## Status
 
 Early. The shape of the API is settling but nothing is 1.0. Known gaps, roughly
 in the order they bite:
 
-- **No constraint support.** `maxLength`, numeric ranges, and array-size caps
-  aren't expressible on a field, so they can't reach the prompt or the JSON
-  Schema, and validation won't catch them.
-- **Enums are compile-time only.** A field whose legal values come from a
-  database or CMS taxonomy at runtime has no way to declare them.
 - **No repair loop.** A validation failure throws; it doesn't feed the issues
   back to the model for a second attempt.
 - **No confidence or provenance.** Results don't say which fields were read
-  straight out of the input and which were inferred.
+  straight out of the input and which were inferred — which is what a pre-fill
+  UI wants in order to flag the guesses for review.
 - **Classes only.** The compiler reads decorated classes; plain `interface`s
   and `type`s are invisible to it.
+- **Constraints reach OpenAI through the prompt, not the schema.** Strict mode
+  rejects a request outright if it carries a keyword it doesn't accept, and we
+  couldn't establish which of `maxLength`/`minimum`/`pattern`/… it currently
+  takes, so they're omitted there and enforced by the prompt and the validator
+  instead. Anthropic gets them in the schema. See `CONSTRAINT_KEYWORDS` in
+  `@sembl/core` for the one place to change if you verify otherwise.
+- **No index-signature types.** A `Record<string, string>` has no `FieldType`
+  equivalent; the compiler warns rather than mistyping it.

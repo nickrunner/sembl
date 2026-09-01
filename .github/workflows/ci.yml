@@ -24,14 +24,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Generated schemas are gitignored, and the examples package imports its
-      # bundle, so extraction has to run before anything is compiled.
-      - name: Extract example schemas
-        run: pnpm --filter @sembl/examples extract
-
+      # Schema extraction runs as part of the examples package's own build,
+      # which pnpm orders after the compiler it depends on.
       - run: pnpm build
 
       - run: pnpm test
 
+      # Typechecks each package against the built .d.ts of its dependencies,
+      # so it has to follow the build.
       - name: Typecheck
         run: pnpm lint

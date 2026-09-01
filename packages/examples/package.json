@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup",
-    "extract": "sembl extract --input src/schemas --output src/generated",
+    "build": "pnpm run extract && tsup",
+    "extract": "node ../compiler/dist/cli/index.js extract --input src/schemas --output src/generated",
     "demo": "node dist/demo.js"
   },
   "dependencies": {
