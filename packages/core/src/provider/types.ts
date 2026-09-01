@@ -1,4 +1,5 @@
 import type { RuntimeSchema, SchemaBundle } from "../schema/types.js";
+import type { ResolvedEnums } from "../schema/enum-source.js";
 
 /**
  * Configuration for a provider.
@@ -34,6 +35,12 @@ export interface ProviderRequest {
    * no properties.
    */
   bundle?: SchemaBundle;
+  /**
+   * Legal values for the schema's `dynamicEnum` sources, already resolved.
+   * A provider that re-derives its own JSON Schema must pass these along —
+   * dropping them silently widens those fields back to free-form strings.
+   */
+  resolvedEnums?: ResolvedEnums;
 }
 
 /**

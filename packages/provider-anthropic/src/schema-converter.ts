@@ -1,4 +1,4 @@
-import type { RuntimeSchema, SchemaBundle } from "@sembl/core";
+import type { RuntimeSchema, ResolvedEnums, SchemaBundle } from "@sembl/core";
 import { runtimeSchemaToJsonSchema } from "@sembl/core";
 
 /** Anthropic tool names must match `^[a-zA-Z0-9_-]{1,64}$`. */
@@ -19,6 +19,10 @@ export function toToolName(schemaId: string): string {
 export function toInputSchema(
   schema: RuntimeSchema,
   bundle?: SchemaBundle,
+  resolvedEnums?: ResolvedEnums,
 ): Record<string, unknown> {
-  return runtimeSchemaToJsonSchema(schema, bundle, { dialect: "standard" });
+  return runtimeSchemaToJsonSchema(schema, bundle, {
+    dialect: "standard",
+    resolvedEnums,
+  });
 }

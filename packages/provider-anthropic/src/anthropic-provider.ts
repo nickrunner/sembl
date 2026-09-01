@@ -28,7 +28,11 @@ export class AnthropicProvider implements Provider {
 
   async complete(request: ProviderRequest): Promise<ProviderResponse> {
     const toolName = this.config.toolName ?? toToolName(request.schema.id);
-    const inputSchema = toInputSchema(request.schema, request.bundle);
+    const inputSchema = toInputSchema(
+      request.schema,
+      request.bundle,
+      request.resolvedEnums,
+    );
 
     const message = await this.client.messages.create({
       model: this.config.model,

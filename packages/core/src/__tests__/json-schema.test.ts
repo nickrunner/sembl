@@ -147,3 +147,45 @@ describe("runtimeSchemaToJsonSchema dialects", () => {
     expect(items.required).toEqual(["city"]);
   });
 });
+
+describe("dynamic enums", () => {
+  const staySchema: RuntimeSchema = {
+    id: "Stay",
+    description: "A stay.",
+    fields: [
+      {
+        name: "amenities",
+        description: "Amenities offered.",
+        type: { kind: "array", items: { kind: "dynamicEnum", sourceId: "amenities" } },
+        required: true,
+      },
+    ],
+  };
+
+  it("emits a resolved source as an enum", () => {
+    const props = runtimeSchemaToJsonSchema(staySchema, undefined, {
+      resolvedEnums: { amenities: ["pool", "sauna"] },
+    }).properties as Record<string, Record<string, unknown>>;
+
+    expect((props.amenities.items as Record<string, unknown>).enum).toEqual(["pool", "sauna"]);
+  });
+
+  it("emits an unresolved source as a plain string, not an empty enum", () => {
+    const props = runtimeSchemaToJsonSchema(staySchema).properties as Record<
+      string,
+      Record<string, unknown>
+    >;
+    const items = props.amenities.items as Record<string, unknown>;
+
+    expect(items.type).toBe("string");
+    expect(items.enum).toBeUndefined();
+  });
+
+  it("treats an empty resolved source as unresolved", () => {
+    const props = runtimeSchemaToJsonSchema(staySchema, undefined, {
+      resolvedEnums: { amenities: [] },
+    }).properties as Record<string, Record<string, unknown>>;
+
+    expect((props.amenities.items as Record<string, unknown>).enum).toBeUndefined();
+  });
+});
