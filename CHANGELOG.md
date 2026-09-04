@@ -5,6 +5,11 @@ publishable packages (`@sembl/core`, `@sembl/compiler`,
 `@sembl/provider-anthropic`, `@sembl/provider-openai`) move in lockstep, so one
 entry covers a release.
 
+## Unreleased
+
+- All packages now ship CommonJS alongside ESM, with `.d.cts` types for the
+  `require` condition. The `sembl` CLI stays ESM-only.
+
 ## 0.1.0
 
 Initial release.

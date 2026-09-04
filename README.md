@@ -31,6 +31,9 @@ Swap in `@sembl/provider-openai` (plus `openai`) if that's your provider. Both
 provider packages take their SDK as a peer dependency, so your app owns the
 version and, usually, the client instance.
 
+Every package ships ESM and CommonJS with matching types, so `import` and
+`require` both work. Only the `sembl` CLI binary is ESM-only.
+
 ## Quickstart
 
 ### 1. Describe the shape
@@ -274,6 +277,7 @@ pnpm install
 pnpm build   # schema extraction runs as part of the examples package's build
 pnpm test
 pnpm lint    # typechecks each package against its dependencies' built types
+pnpm check:exports  # packs each package and checks its exports map with arethetypeswrong
 ```
 
 `pnpm lint` has to follow `pnpm build`: packages are typechecked against the

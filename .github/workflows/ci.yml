@@ -34,3 +34,8 @@ jobs:
       # so it has to follow the build.
       - name: Typecheck
         run: pnpm lint
+
+      # Guards the dual ESM/CJS exports map: a consumer on either module system
+      # must resolve both the code and the matching types.
+      - name: Check package exports
+        run: pnpm check:exports
