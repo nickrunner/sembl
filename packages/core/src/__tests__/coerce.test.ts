@@ -573,3 +573,90 @@ describe("sources", () => {
     expect(calls).toBe(2);
   });
 });
+
+describe("input budgeting", () => {
+  const nameSchema: RuntimeSchema = {
+    id: "Person",
+    description: "A person.",
+    fields: [{ name: "name", description: "Name", type: { kind: "string" }, required: true }],
+  };
+
+  function capturingProvider() {
+    const requests: ProviderRequest[] = [];
+    const provider: Provider = {
+      async complete(request) {
+        requests.push(request);
+        return { data: { name: "Ada" } };
+      },
+    };
+    return { provider, requests };
+  }
+
+  function collectEvents() {
+    const events: { name: string; attributes: Record<string, unknown> }[] = [];
+    const sink: TraceSink = {
+      write(span: TraceSpan) {
+        for (const event of span.events) {
+          events.push({ name: event.name, attributes: event.attributes ?? {} });
+        }
+      },
+    };
+    return { sink, events };
+  }
+
+  it("rejects a non-positive budget", async () => {
+    const { provider } = capturingProvider();
+    await expect(
+      coerce("x", { provider, schema: nameSchema, maxInputChars: 0 }),
+    ).rejects.toThrow(RangeError);
+  });
+
+  it("truncates over-budget input and records it in the trace", async () => {
+    const { provider, requests } = capturingProvider();
+    const { sink, events } = collectEvents();
+    await coerce("a".repeat(5000), {
+      provider,
+      schema: nameSchema,
+      maxInputChars: 200,
+      traceSinks: [sink],
+    });
+    expect(requests[0].userInput.length).toBeLessThan(300);
+    expect(requests[0].userInput).toContain("characters omitted");
+    const event = events.find((e) => e.name === "inputTruncated");
+    expect(event?.attributes).toMatchObject({ maxInputChars: 200, policy: "tail" });
+  });
+
+  it("does not record a truncation when the input fits", async () => {
+    const { provider } = capturingProvider();
+    const { sink, events } = collectEvents();
+    await coerce("short", { provider, schema: nameSchema, maxInputChars: 200, traceSinks: [sink] });
+    expect(events.some((e) => e.name === "inputTruncated")).toBe(false);
+  });
+
+  it("runs preprocess on each source before budgeting", async () => {
+    const { provider, requests } = capturingProvider();
+    await coerce(
+      [
+        { label: "A", text: "<b>Ada</b>" },
+        { label: "B", text: "<i>Lovelace</i>" },
+      ],
+      {
+        provider,
+        schema: nameSchema,
+        preprocess: (source, index) => `${index}:${source.text.replace(/<[^>]+>/g, "")}`,
+      },
+    );
+    expect(requests[0].userInput).toContain('<source label="A">\n0:Ada\n</source>');
+    expect(requests[0].userInput).toContain('<source label="B">\n1:Lovelace\n</source>');
+  });
+
+  it("lets preprocess replace the whole source, asynchronously", async () => {
+    const { provider, requests } = capturingProvider();
+    await coerce("raw", {
+      provider,
+      schema: nameSchema,
+      preprocess: async () => ({ label: "Cleaned", text: "clean" }),
+    });
+    expect(requests[0].userInput).toBe('<source label="Cleaned">\nclean\n</source>');
+  });
+});

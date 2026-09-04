@@ -7,6 +7,14 @@ entry covers a release.
 
 ## Unreleased
 
+- `maxInputChars` caps the source text sent to the model, with `truncate`
+  choosing which part of an over-budget source to cut and a `preprocess`
+  hook that runs on each source first. Short sources keep their text; the
+  cut lands on the long ones, is marked in place, and is traced as
+  `inputTruncated`. `budgetSources` is exported.
+- New package `@sembl/source-html`: HTML to readable text with the title,
+  meta tags and JSON-LD ahead of the body, plus a `preprocessHtml()` hook.
+
 - Coercions accept a string, a labelled `Source`, or a list of sources. Each
   is rendered as a delimited `<source>` block, the system prompt instructs the
   model to treat everything inside a block as data rather than instructions,

@@ -15,7 +15,9 @@ import {
   toProvenanceSchema,
 } from "./provenance.js";
 import { renderSources, toSources } from "./sources.js";
-import type { CoerceInput } from "./sources.js";
+import type { CoerceInput, Source } from "./sources.js";
+import { budgetSources } from "./budget.js";
+import type { TruncatePolicy } from "./budget.js";
 import type { FieldProvenance, ProvenanceResult } from "./provenance.js";
 import { validateStrict, validatePartial } from "./validator.js";
 import { resolveIssues } from "./resolve-issues.js";
@@ -57,7 +59,30 @@ export interface CoerceOptions {
    * event.
    */
   onInvalidField?: InvalidFieldPolicy;
+  /**
+   * Cap on the total characters of source text sent to the model, applied
+   * after `preprocess`. Sources over the cap are cut per `truncate`, each
+   * losing a share proportional to its length, and the cut is marked in
+   * place with how much was omitted. Unbounded by default.
+   *
+   * Tokens vary by model and tokenizer; as a rule of thumb English prose runs
+   * about four characters per token.
+   */
+  maxInputChars?: number;
+  /** Which part of an over-budget source to cut. Default `"tail"`. */
+  truncate?: TruncatePolicy;
+  /**
+   * Transform each source before budgeting and rendering: strip HTML down to
+   * text, redact, normalise. Returning a string keeps the source's label.
+   */
+  preprocess?: PreprocessSource;
 }
+
+/** A hook applied to each source before it is budgeted and rendered. */
+export type PreprocessSource = (
+  source: Source,
+  index: number,
+) => Source | string | Promise<Source | string>;
 
 const INVALID_FIELD_POLICIES: readonly InvalidFieldPolicy[] = ["throw", "drop", "clamp"];
 
@@ -157,19 +182,30 @@ async function runCoercion(
     );
   }
 
+  if (
+    options.maxInputChars !== undefined &&
+    (!Number.isInteger(options.maxInputChars) || options.maxInputChars <= 0)
+  ) {
+    throw new RangeError(
+      `maxInputChars must be a positive integer, got ${String(options.maxInputChars)}`,
+    );
+  }
+
   // Normalised up front so a bad input fails before any span is opened.
-  const sources = toSources(input);
-  const sourceLabels = sources.length > 1 ? sources.map((s) => s.label ?? "") : [];
+  const rawSources = toSources(input);
 
   const tracer = new Tracer(traceSinks);
   const rootSpan = tracer.startSpan(mode, {
     schemaId: schema.id,
     provenance,
     onInvalidField,
-    sourceCount: sources.length,
+    sourceCount: rawSources.length,
   });
 
   try {
+    const sources = await prepareSources(rawSources, options, tracer, rootSpan);
+    const sourceLabels = sources.length > 1 ? sources.map((s) => s.label ?? "") : [];
+
     // Sources are resolved against the target schema even in a provenance run:
     // wrapping does not change which sources are reachable, and the wrapper's
     // extra nesting would only make the walk more expensive.
@@ -287,6 +323,55 @@ async function runCoercion(
     throw new CoerceError(issues);
   } finally {
     tracer.endSpan(rootSpan);
+  }
+}
+
+/**
+ * Run the preprocess hook and the character budget over the sources, under
+ * their own span, recording what was cut so a truncation is never silent.
+ */
+async function prepareSources(
+  sources: readonly Source[],
+  options: CoerceOptions,
+  tracer: Tracer,
+  parent: TraceSpan,
+): Promise<Source[]> {
+  const { preprocess, maxInputChars, truncate } = options;
+  if (!preprocess && maxInputChars === undefined) {
+    return [...sources];
+  }
+
+  const span = tracer.startSpan("prepareInput", {}, parent);
+  try {
+    let prepared: Source[] = [...sources];
+
+    if (preprocess) {
+      prepared = await Promise.all(
+        prepared.map(async (source, index) => {
+          const result = await preprocess(source, index);
+          return typeof result === "string" ? { ...source, text: result } : result;
+        }),
+      );
+      tracer.addEvent(span, "preprocessed", {
+        lengths: prepared.map((s) => s.text.length),
+      });
+    }
+
+    if (maxInputChars !== undefined) {
+      const budgeted = budgetSources(prepared, maxInputChars, truncate);
+      prepared = budgeted.sources;
+      if (budgeted.truncated.length > 0) {
+        tracer.addEvent(span, "inputTruncated", {
+          maxInputChars,
+          policy: truncate ?? "tail",
+          sources: budgeted.truncated,
+        });
+      }
+    }
+
+    return prepared;
+  } finally {
+    tracer.endSpan(span);
   }
 }
 

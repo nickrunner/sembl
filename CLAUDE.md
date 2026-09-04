@@ -29,7 +29,7 @@ pnpm -C packages/examples extract
 
 ## Architecture
 
-**Monorepo** using pnpm workspaces with four packages:
+**Monorepo** using pnpm workspaces with these packages:
 
 ### @sembl/core
 Runtime library. Key areas:
@@ -48,6 +48,9 @@ Build-time tool that reads TypeScript source files with ts-morph, finds `@Schema
 
 ### @sembl/provider-openai
 OpenAI provider implementing the `Provider` interface. Converts `RuntimeSchema` to OpenAI's strict JSON Schema format and uses structured outputs via `chat.completions`.
+
+### @sembl/source-html
+Zero-dependency HTML → text for extraction: title and meta tags, then JSON-LD, then body text, so head-keeping truncation preserves the structured parts.
 
 ### @sembl/examples (private)
 Demo schemas (`Address`, `Profile`, `PromptIntent`) and a `demo.ts` showing fluent API chaining.

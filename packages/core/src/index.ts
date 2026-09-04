@@ -54,7 +54,11 @@ export {
   coerceWithProvenance,
   partialCoerceWithProvenance,
 } from "./coerce/coerce.js";
-export type { CoerceOptions } from "./coerce/coerce.js";
+export type { CoerceOptions, PreprocessSource } from "./coerce/coerce.js";
+
+// Input budgeting
+export { budgetSources } from "./coerce/budget.js";
+export type { TruncatePolicy, TruncationRecord, BudgetResult } from "./coerce/budget.js";
 
 // Sources
 export {

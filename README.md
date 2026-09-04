@@ -225,6 +225,32 @@ extract from, not an instruction. A closing tag inside a source is escaped so
 no source can end its own block early. With several sources, provenance also
 reports which one each value was read from (`provenance.name.source`).
 
+## Budgeting the input
+
+Scraped HTML is routinely 60k+ characters. Rather than guessing a safe cap in
+every caller, give the coercion one:
+
+```ts
+await coerce<Listing>(htmlSource(html, "Listing"), {
+  provider,
+  schema,
+  maxInputChars: 40_000,
+  truncate: "tail",            // cut the end (default); "head" keeps the end; "middle" keeps both ends
+  preprocess: (source) => ...,  // runs on each source first — strip, redact, normalise
+});
+```
+
+The budget covers all sources together. Every source that fits within an
+equal share keeps its whole text; what those leave unused goes to the longer
+ones, so a short email next to a long page is never touched. A cut is marked
+in place with how much was omitted, and an `inputTruncated` trace event
+records it, so truncation is never silent. Tokens vary by model; as a rule of
+thumb English prose runs about four characters per token.
+
+For pages, [`@sembl/source-html`](packages/source-html/README.md) turns HTML
+into readable text with the title, meta tags and JSON-LD first, so the parts
+most likely to hold clean facts are the ones that survive a cut.
+
 ## Knowing what to trust
 
 A pre-filled form needs to distinguish what was read from the input from what
@@ -320,6 +346,7 @@ or your own logger.
 | `@sembl/compiler`           | AST extractor and the `sembl extract` CLI                           |
 | `@sembl/provider-anthropic` | Anthropic provider                                                  |
 | `@sembl/provider-openai`    | OpenAI provider                                                     |
+| `@sembl/source-html`        | HTML → readable text, JSON-LD and meta first                        |
 | `@sembl/examples`           | runnable demo (private)                                             |
 
 ## Development

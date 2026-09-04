@@ -3,6 +3,8 @@ import type { SchemaBundle } from "../schema/types.js";
 import type { EnumResolver } from "../schema/enum-source.js";
 import type { TraceSink } from "../tracing/types.js";
 import type { InvalidFieldPolicy } from "./resolve-issues.js";
+import type { TruncatePolicy } from "./budget.js";
+import type { PreprocessSource } from "./coerce.js";
 
 /**
  * Configuration options shared by global and per-call config.
@@ -20,6 +22,12 @@ export interface SemblGlobalConfig {
   maxRepairAttempts?: number;
   /** What to do with a present field that fails validation. Default "throw". */
   onInvalidField?: InvalidFieldPolicy;
+  /** Cap on total source characters sent to the model. Unbounded by default. */
+  maxInputChars?: number;
+  /** Which part of an over-budget source to cut. Default "tail". */
+  truncate?: TruncatePolicy;
+  /** Transform each source before budgeting and rendering. */
+  preprocess?: PreprocessSource;
 }
 
 /**
@@ -38,6 +46,12 @@ export interface SemblCallConfig {
   maxRepairAttempts?: number;
   /** Override the invalid-field policy for this call */
   onInvalidField?: InvalidFieldPolicy;
+  /** Override the input character budget for this call */
+  maxInputChars?: number;
+  /** Override the truncation policy for this call */
+  truncate?: TruncatePolicy;
+  /** Override the source preprocessor for this call */
+  preprocess?: PreprocessSource;
 }
 
 /**
@@ -50,6 +64,9 @@ export interface ResolvedConfig {
   traceSinks?: TraceSink[];
   maxRepairAttempts?: number;
   onInvalidField?: InvalidFieldPolicy;
+  maxInputChars?: number;
+  truncate?: TruncatePolicy;
+  preprocess?: PreprocessSource;
 }
 
 /**
@@ -95,5 +112,8 @@ export function resolveConfig(callConfig?: SemblCallConfig): ResolvedConfig {
     traceSinks: callConfig?.traceSinks ?? global.traceSinks,
     maxRepairAttempts: callConfig?.maxRepairAttempts ?? global.maxRepairAttempts,
     onInvalidField: callConfig?.onInvalidField ?? global.onInvalidField,
+    maxInputChars: callConfig?.maxInputChars ?? global.maxInputChars,
+    truncate: callConfig?.truncate ?? global.truncate,
+    preprocess: callConfig?.preprocess ?? global.preprocess,
   };
 }
