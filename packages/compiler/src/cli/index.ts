@@ -1,13 +1,21 @@
+import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { extractCommand } from "./commands/extract.js";
 import { evalCommand } from "./commands/eval.js";
+
+// Both src/cli/ and dist/cli/ sit two levels below the package root, so the
+// same relative path finds the manifest whether this runs from source or
+// from the build, and the version can never drift from what was published.
+const { version } = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+) as { version: string };
 
 const program = new Command();
 
 program
   .name("sembl")
   .description("SEMBL schema compiler — extract runtime schemas from decorated TypeScript classes")
-  .version("0.2.1");
+  .version(version);
 
 program
   .command("extract")
