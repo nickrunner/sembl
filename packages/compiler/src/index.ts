@@ -23,3 +23,5 @@ export type {
   CompilerConfig,
   ExtractionResult,
 } from "./types.js";
+export { evalCommand } from "./cli/commands/eval.js";
+export type { EvalCommandOptions, EvalCommandResult, EvalConfig } from "./cli/commands/eval.js";

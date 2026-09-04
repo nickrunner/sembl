@@ -7,6 +7,12 @@ entry covers a release.
 
 ## Unreleased
 
+- Eval harness in `@sembl/testing` (`runEval`, `loadFixtures`, `formatReport`,
+  `diffReports`) and a `sembl eval` CLI command: per-field precision and
+  recall over `{ input, expected }` fixtures, token usage, cost and latency
+  percentiles, deltas against the previous run, replay support, and
+  `--min-recall` / `--min-precision` gates.
+
 - New package `@sembl/testing`: `RecordingProvider` writes request/response
   pairs to a directory keyed by what reached the model; `ReplayProvider`
   answers from them offline, throwing `ReplayMissError` on a miss unless a

@@ -49,6 +49,7 @@ export type {
   ProviderConfig,
   ProviderRequest,
   ProviderResponse,
+  ProviderUsage,
 } from "./provider/types.js";
 
 // Coerce API

@@ -1,0 +1,4 @@
+{
+  "input": { "file": "cabin.txt", "label": "Listing page" },
+  "expected": { "name": "Sea Cabin", "sleeps": 6, "amenities": ["sauna", "hot tub"], "address": { "city": "Boise" } }
+}

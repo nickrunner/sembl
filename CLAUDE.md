@@ -44,7 +44,7 @@ Runtime library. Key areas:
 Build-time tool that reads TypeScript source files with ts-morph, finds `@Schema`/`@Describe` decorators, and emits `RuntimeSchema` constants as `.schema.ts` files plus a bundle index.
 - **`extractor/`** — AST pipeline: `ast-extractor` → `class-visitor` → `decorator-parser` → `type-resolver`
 - **`generator/`** — `schema-emitter` outputs generated files
-- **`cli/`** — Commander.js CLI exposed as the `sembl` binary
+- **`cli/`** — Commander.js CLI exposed as the `sembl` binary: `extract` (schemas from decorated classes) and `eval` (runs `@sembl/testing` fixtures against a config module)
 
 ### @sembl/provider-openai
 OpenAI provider implementing the `Provider` interface. Converts `RuntimeSchema` to OpenAI's strict JSON Schema format and uses structured outputs via `chat.completions`.

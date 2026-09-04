@@ -351,6 +351,30 @@ reviews the result rather than on a hot path. It isn't available on the fluent
 chain — an intermediate link's annotations would be serialized into the next
 call and lost.
 
+## Measuring changes
+
+`@sembl/testing` makes a description or prompt change measurable. Fixtures
+are `{ input, expected }` pairs; `sembl eval` runs them and reports per-field
+precision and recall, token usage, cost and latency, with deltas against the
+previous run:
+
+```sh
+sembl eval --config sembl.eval.mjs --fixtures ./evals/listing --replay ./evals/listing/recordings
+```
+
+```
+Eval: Listing (partialCoerce) — 12 fixture(s), 12 ran, 9 exact (+2)
+
+Field           Prec  Recall   tp  fp  fn  Δ
+amenities       100%    83%    10   0   2  R+8pt
+name            100%   100%    12   0   0
+sleeps           92%    92%    11   1   1  P-8pt R-8pt
+```
+
+The same package has `RecordingProvider` and `ReplayProvider`, so both your
+own tests and the evals run offline once recorded. See its
+[README](packages/testing/README.md).
+
 ## Providers
 
 `Provider` is a one-method interface — `complete(request) => Promise<response>`
