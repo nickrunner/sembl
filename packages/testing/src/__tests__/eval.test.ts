@@ -187,7 +187,7 @@ describe("reports", () => {
       const text = formatReport(after, diff);
       expect(text).toContain("Eval: Listing (coerce)");
       expect(text).toContain("3 fixture(s), 3 ran, 2 exact (+2)");
-      expect(text).toMatch(/^name\s+ 67%/m);
+      expect(text).toMatch(/^name\s+67%\s+67%/m);
       expect(text).toContain("Mismatches:");
       expect(text).toContain('more[1] › name: expected "Barn", got "Wrong"');
     } finally {

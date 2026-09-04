@@ -7,6 +7,12 @@ entry covers a release.
 
 ## Unreleased
 
+- Fixed: the OpenAI provider rebuilt its JSON Schema without the resolved
+  enum values, so `@ValuesFrom` fields were free-form strings on OpenAI and
+  the model could answer "Hot tub" where the taxonomy said "hot-tub".
+- `@sembl/examples` is now a suite of twelve examples, one per feature,
+  recorded on first run and replayed afterwards.
+
 - Eval harness in `@sembl/testing` (`runEval`, `loadFixtures`, `formatReport`,
   `diffReports`) and a `sembl eval` CLI command: per-field precision and
   recall over `{ input, expected }` fixtures, token usage, cost and latency

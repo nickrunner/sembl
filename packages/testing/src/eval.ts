@@ -572,6 +572,7 @@ export function formatReport(report: EvalReport, diff?: EvalDiff): string {
   const width = Math.max(5, ...report.fields.map((f) => f.path.length));
   const deltas = new Map((diff?.fields ?? []).map((f) => [f.path, f]));
   lines.push(`${"Field".padEnd(width)}  Prec  Recall   tp  fp  fn  Δ`);
+  const col = (value: number | null, w: number) => pct(value).trim().padStart(w);
   for (const field of report.fields) {
     const d = deltas.get(field.path);
     const change = d
@@ -580,7 +581,7 @@ export function formatReport(report: EvalReport, diff?: EvalDiff): string {
           .join(" ")
       : "";
     lines.push(
-      `${field.path.padEnd(width)}  ${pct(field.precision)} ${pct(field.recall)}   ${String(field.tp).padStart(2)}  ${String(field.fp).padStart(2)}  ${String(field.fn).padStart(2)}  ${change}`,
+      `${field.path.padEnd(width)}  ${col(field.precision, 4)}  ${col(field.recall, 6)}   ${String(field.tp).padStart(2)}  ${String(field.fp).padStart(2)}  ${String(field.fn).padStart(2)}  ${change}`,
     );
   }
   lines.push("");

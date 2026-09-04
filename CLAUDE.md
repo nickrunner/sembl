@@ -56,7 +56,7 @@ Zero-dependency HTML → text for extraction: title and meta tags, then JSON-LD,
 Node-only test support: `RecordingProvider` / `ReplayProvider` (request/response pairs on disk, keyed by a hash of what reached the model) and the eval harness behind `sembl eval`.
 
 ### @sembl/examples (private)
-Demo schemas (`Address`, `Profile`, `PromptIntent`) and a `demo.ts` showing fluent API chaining.
+Twelve runnable examples under `src/examples/`, one per feature, over fictional listings in `data/`. `src/support/provider.ts` picks Anthropic or OpenAI from the env and wraps it in `replayOrRecord` so runs are recorded under `recordings/` (gitignored). `pnpm --filter @sembl/examples demo [n]`.
 
 ## Key Patterns
 

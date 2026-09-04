@@ -8,17 +8,22 @@ validated instance of it.
 const draft = await sembl(listingHtml).partialCoerceTo(StayDetailsSchema);
 ```
 
-SEMBL is a schema compiler plus a thin runtime. You annotate ordinary
-TypeScript classes with the *meaning* of each field; a build step extracts
-those annotations into runtime schemas; at runtime an LLM provider does the
-extraction and SEMBL validates the result against the schema you declared.
+SEMBL is a thin runtime with a schema compiler beside it. You describe the
+*meaning* of each field — on an ordinary TypeScript class with decorators
+that a build step extracts, or at runtime with `defineSchema` — and an LLM
+provider does the extraction while SEMBL validates the result against the
+schema you declared. Around that core: per-field failure policies, labelled
+sources framed against prompt injection, input budgeting, batches, provenance,
+record/replay for tests, and an eval harness so a prompt change is measured
+rather than guessed at.
 
 ## Why not just call the model yourself?
 
 Hand-written extraction prompts drift from the types they populate. SEMBL keeps
-one source of truth — the decorated class — and derives the prompt, the JSON
-Schema sent to the provider, and the validation from it. Rename a field or
-sharpen a description and every downstream artifact follows.
+one source of truth — the schema — and derives the prompt, the JSON Schema
+sent to the provider, and the validation from it. Rename a field or sharpen a
+description and every downstream artifact follows; run the evals and you can
+see whether it helped.
 
 ## Install
 
@@ -29,7 +34,9 @@ pnpm add -D @sembl/compiler
 
 Swap in `@sembl/provider-openai` (plus `openai`) if that's your provider. Both
 provider packages take their SDK as a peer dependency, so your app owns the
-version and, usually, the client instance.
+version and, usually, the client instance. Add `@sembl/source-html` when your
+inputs are pages, and `@sembl/testing` as a dev dependency for record/replay
+and evals. Skip `@sembl/compiler` if you define schemas at runtime.
 
 Every package ships ESM and CommonJS with matching types, so `import` and
 `require` both work. Only the `sembl` CLI binary is ESM-only.
@@ -415,15 +422,18 @@ env var — see [its README](packages/provider-anthropic/README.md).
 
 ## Tracing
 
-Pass `traceSinks` to see what the pipeline actually did — prompt construction,
-schema build, the LLM call with token usage, validation — as nested spans:
+Pass `traceSinks` to see what the pipeline actually did — input preparation,
+enum resolution, prompt construction, schema build, the LLM call with token
+usage, validation — as nested spans:
 
 ```ts
 SemblConfig.configure({ provider, bundle, traceSinks: [new ConsoleSink()] });
 ```
 
-Implement `TraceSink` (a single `write(span)`) to forward spans to OpenTelemetry
-or your own logger.
+Events carry the decisions worth auditing: `inputTruncated` (what was cut and
+by how much), `enumSourceFailed`, `repairAttempt`, and `issuesResolved` (what
+`onInvalidField` dropped or clamped). Implement `TraceSink` (a single
+`write(span)`) to forward spans to OpenTelemetry or your own logger.
 
 ## Packages
 
@@ -435,7 +445,7 @@ or your own logger.
 | `@sembl/provider-openai`    | OpenAI provider                                                     |
 | `@sembl/source-html`        | HTML → readable text, JSON-LD and meta first                        |
 | `@sembl/testing`            | record/replay providers, eval harness                               |
-| `@sembl/examples`           | runnable demo (private)                                             |
+| `@sembl/examples`           | twelve runnable examples (private)                                  |
 
 ## Development
 
@@ -451,11 +461,21 @@ pnpm check:exports  # packs each package and checks its exports map with arethet
 `.d.ts` their dependencies emit, so those have to exist first. CI runs exactly
 these steps.
 
-To run the demo against a live model, build, then:
+## Examples
+
+`packages/examples` has twelve runnable examples, one per feature, from the
+basics through batches, injection-resistant sources, HTML budgeting,
+provenance, tracing, replay and evals — see its
+[README](packages/examples/README.md). Build, put a key in
+`packages/examples/.env`, then:
 
 ```sh
-OPENAI_API_KEY=... pnpm --filter @sembl/examples demo
+pnpm --filter @sembl/examples demo        # all of them
+pnpm --filter @sembl/examples demo 06     # one
 ```
+
+Model calls are recorded on the first run and replayed afterwards, so the
+suite is free to rerun and works without a key once recorded.
 
 ## Releasing
 

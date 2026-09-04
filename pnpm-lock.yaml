@@ -63,15 +63,30 @@ importers:
 
   packages/examples:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.65.0
+        version: 0.65.0
       '@sembl/compiler':
         specifier: workspace:*
         version: link:../compiler
       '@sembl/core':
         specifier: workspace:*
         version: link:../core
+      '@sembl/provider-anthropic':
+        specifier: workspace:*
+        version: link:../provider-anthropic
       '@sembl/provider-openai':
         specifier: workspace:*
         version: link:../provider-openai
+      '@sembl/source-html':
+        specifier: workspace:*
+        version: link:../source-html
+      '@sembl/testing':
+        specifier: workspace:*
+        version: link:../testing
+      openai:
+        specifier: ^4.0.0
+        version: 4.104.0
     devDependencies:
       '@types/node':
         specifier: ^25.5.0
