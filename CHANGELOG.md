@@ -1,9 +1,9 @@
 # Changelog
 
-All notable changes to the SEMBL packages are recorded here. The four
-publishable packages (`@sembl/core`, `@sembl/compiler`,
-`@sembl/provider-anthropic`, `@sembl/provider-openai`) move in lockstep, so one
-entry covers a release.
+All notable changes to the SEMBL packages are recorded here. The publishable
+packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
+`@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
+lockstep, so one entry covers a release.
 
 ## Unreleased
 
@@ -12,6 +12,8 @@ entry covers a release.
   the model could answer "Hot tub" where the taxonomy said "hot-tub".
 - `@sembl/examples` is now a suite of twelve examples, one per feature,
   recorded on first run and replayed afterwards.
+
+## 0.2.0
 
 - Eval harness in `@sembl/testing` (`runEval`, `loadFixtures`, `formatReport`,
   `diffReports`) and a `sembl eval` CLI command: per-field precision and
