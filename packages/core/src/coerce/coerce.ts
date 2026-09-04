@@ -8,7 +8,7 @@ import { runtimeSchemaToJsonSchema } from "../schema/json-schema.js";
 import { resolveEnumSources } from "../schema/resolve-enum-sources.js";
 import { bundleOf } from "../schema/define.js";
 import type { FieldValidationIssue } from "../errors/coerce-error.js";
-import { buildPrompt } from "./prompt-builder.js";
+import { buildPrompt, normalizeInstructions } from "./prompt-builder.js";
 import { buildRepairInput } from "./repair.js";
 import {
   provenanceInstructions,
@@ -60,6 +60,19 @@ export interface CoerceOptions {
    * event.
    */
   onInvalidField?: InvalidFieldPolicy;
+  /**
+   * Extra guidance for this extraction that is not part of the schema: facts
+   * about the source ("prices on this site are in cents"), context the model
+   * cannot see ("the property is in Portugal, so assume EUR"), or judgement
+   * calls ("guest counts exclude infants"). Rendered as its own section at
+   * the end of the system prompt, so it stays on the instruction side of the
+   * data boundary that source blocks are excluded from — a hint placed inside
+   * a source would be ignored by design.
+   *
+   * Reaches every call of the run, repairs included, and is part of what a
+   * recording is keyed on.
+   */
+  instructions?: string | readonly string[];
   /**
    * Cap on the total characters of source text sent to the model, applied
    * after `preprocess`. Sources over the cap are cut per `truncate`, each
@@ -179,6 +192,8 @@ export async function runCoercion(
       `maxRepairAttempts must be a non-negative integer, got ${String(options.maxRepairAttempts)}`,
     );
   }
+  // Validated up front so a bad value fails before any span is opened.
+  const instructions = normalizeInstructions(options.instructions);
   const onInvalidField = options.onInvalidField ?? "throw";
   if (!INVALID_FIELD_POLICIES.includes(onInvalidField)) {
     throw new RangeError(
@@ -225,12 +240,13 @@ export async function runCoercion(
     // are what the model needs. The wrapper shape is carried by the JSON
     // Schema, and how to judge confidence by the extra instructions.
     const promptSpan = tracer.startSpan("buildPrompt", {}, rootSpan);
-    const basePrompt = buildPrompt(schema, bundle, { resolvedEnums });
+    const basePrompt = buildPrompt(schema, bundle, { resolvedEnums, instructions });
     const systemPrompt = provenance
       ? `${basePrompt}\n${provenanceInstructions({ sourceLabels })}`
       : basePrompt;
     tracer.addEvent(promptSpan, "promptBuilt", {
       promptLength: systemPrompt.length,
+      instructionCount: instructions.length,
     });
     tracer.endSpan(promptSpan);
 

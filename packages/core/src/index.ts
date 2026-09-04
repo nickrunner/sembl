@@ -112,7 +112,7 @@ export { SemblConfig } from "./coerce/config.js";
 export type { SemblGlobalConfig, SemblCallConfig } from "./coerce/config.js";
 
 // Prompt builder
-export { buildPrompt } from "./coerce/prompt-builder.js";
+export { buildPrompt, normalizeInstructions } from "./coerce/prompt-builder.js";
 export type { PromptOptions } from "./coerce/prompt-builder.js";
 
 // Validation

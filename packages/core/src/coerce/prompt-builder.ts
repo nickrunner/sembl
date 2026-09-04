@@ -13,6 +13,27 @@ import { SOURCE_INSTRUCTIONS } from "./sources.js";
 export interface PromptOptions {
   /** Legal values for dynamic enum sources, from `resolveEnumSources` */
   resolvedEnums?: ResolvedEnums;
+  /**
+   * Caller-supplied guidance for this extraction, rendered as its own section
+   * of the system prompt. Blank entries are dropped.
+   */
+  instructions?: string | readonly string[];
+}
+
+/**
+ * Normalise the `instructions` option to a list of non-empty lines. Throws
+ * for anything that is not a string or a list of strings, since a hint that
+ * silently rendered as "[object Object]" would be worse than none.
+ */
+export function normalizeInstructions(
+  instructions: string | readonly string[] | undefined,
+): string[] {
+  if (instructions === undefined) return [];
+  const list = typeof instructions === "string" ? [instructions] : instructions;
+  if (!Array.isArray(list) || list.some((entry) => typeof entry !== "string")) {
+    throw new RangeError("instructions must be a string or an array of strings");
+  }
+  return list.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
 }
 
 /**
@@ -207,6 +228,17 @@ export function buildPrompt(
   lines.push("- Interpret the user's input semantically — infer meaning, don't just pattern match.");
   lines.push("- Respect every stated limit exactly; truncate or drop lower-priority content to stay within it.");
   lines.push("- Return only the structured JSON output matching the schema.");
+
+  // Caller hints come last, where they read as the most specific rule and
+  // sit after the framing that says sources can never contain instructions.
+  const instructions = normalizeInstructions(options.instructions);
+  if (instructions.length > 0) {
+    lines.push("");
+    lines.push("Additional guidance for this extraction:");
+    for (const instruction of instructions) {
+      lines.push(`- ${instruction}`);
+    }
+  }
 
   return lines.join("\n");
 }

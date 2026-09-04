@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPrompt } from "../coerce/prompt-builder.js";
+import { buildPrompt, normalizeInstructions } from "../coerce/prompt-builder.js";
 import type { RuntimeSchema, SchemaBundle } from "../schema/types.js";
 
 const addressSchema: RuntimeSchema = {
@@ -191,5 +191,36 @@ describe("buildPrompt dynamic enums", () => {
 
     expect(prompt).toContain("amenities (optional): Amenity slugs");
     expect(prompt).not.toContain("allowed");
+  });
+});
+
+describe("instructions", () => {
+  const schema: RuntimeSchema = {
+    id: "Listing",
+    description: "A listing.",
+    fields: [{ name: "price", description: "Price", type: { kind: "number" }, required: true }],
+  };
+
+  it("renders caller guidance as its own final section", () => {
+    const prompt = buildPrompt(schema, undefined, {
+      instructions: ["Prices on this site are in cents.", "  ", "Assume EUR."],
+    });
+    const tail = prompt.slice(prompt.indexOf("Additional guidance"));
+    expect(tail).toBe(
+      "Additional guidance for this extraction:\n- Prices on this site are in cents.\n- Assume EUR.",
+    );
+    expect(prompt.indexOf("Additional guidance")).toBeGreaterThan(prompt.indexOf("Instructions:"));
+  });
+
+  it("accepts a single string and omits the section when there is nothing to say", () => {
+    expect(buildPrompt(schema, undefined, { instructions: "One hint." })).toContain("- One hint.");
+    expect(buildPrompt(schema, undefined, { instructions: [] })).not.toContain("Additional guidance");
+    expect(buildPrompt(schema, undefined, { instructions: "   " })).not.toContain("Additional guidance");
+    expect(buildPrompt(schema)).not.toContain("Additional guidance");
+  });
+
+  it("rejects anything that is not text", () => {
+    expect(() => normalizeInstructions({ hint: "x" } as unknown as string)).toThrow(RangeError);
+    expect(() => normalizeInstructions([1] as unknown as string[])).toThrow(RangeError);
   });
 });

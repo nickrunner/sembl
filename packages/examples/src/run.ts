@@ -12,10 +12,11 @@ import * as e09 from "./examples/09-provenance.js";
 import * as e10 from "./examples/10-tracing.js";
 import * as e11 from "./examples/11-record-replay.js";
 import * as e12 from "./examples/12-eval.js";
+import * as e13 from "./examples/13-instructions.js";
 
 const examples = [
   ["01", e01], ["02", e02], ["03", e03], ["04", e04], ["05", e05], ["06", e06],
-  ["07", e07], ["08", e08], ["09", e09], ["10", e10], ["11", e11], ["12", e12],
+  ["07", e07], ["08", e08], ["09", e09], ["10", e10], ["11", e11], ["12", e12], ["13", e13],
 ] as const;
 
 async function main(): Promise<void> {
