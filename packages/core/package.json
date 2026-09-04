@@ -1,6 +1,6 @@
 {
   "name": "@sembl/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Semantic coercion for TypeScript: turn unstructured input into validated instances of your types.",
   "keywords": [
     "llm",
