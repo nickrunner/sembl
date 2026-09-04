@@ -33,7 +33,7 @@ pnpm -C packages/examples extract
 
 ### @sembl/core
 Runtime library. Key areas:
-- **`schema/`** — `RuntimeSchema`, `FieldDescriptor`, `FieldType` definitions; JSON Schema conversion; `SchemaRegistry` for runtime lookup
+- **`schema/`** — `RuntimeSchema`, `FieldDescriptor`, `FieldType` definitions; JSON Schema conversion; `SchemaRegistry` for runtime lookup; `define.ts` builds schemas at runtime (`defineSchema`, `field`, `Infer`) with output identical to the compiler's
 - **`coerce/`** — `coerce<T>()` and `partialCoerce<T>()` send schema + user input to an LLM provider and validate the response. `Coercible<T>` provides a fluent chainable API (via `sembl()`) that implements `PromiseLike`
 - **`provider/`** — `Provider` interface that LLM implementations must satisfy
 - **`decorators.ts`** — `@Schema` and `@Describe` are no-ops at runtime; they exist for compile-time extraction only

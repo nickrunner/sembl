@@ -7,6 +7,12 @@ entry covers a release.
 
 ## Unreleased
 
+- `defineSchema` and `field` build a `RuntimeSchema` at runtime with no
+  decorators or compile step, emitting exactly what `sembl extract` would for
+  the equivalent class. A defined schema carries the bundle of every schema
+  it refers to, which coercions use when none is passed, and `Infer<>` gives
+  its TypeScript type.
+
 - `coerceMany` runs a batch against one schema with a concurrency cap, one
   settled result per input in input order, a cache-priming first call, and
   a batch-wide backoff on retryable provider errors.

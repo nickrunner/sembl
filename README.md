@@ -99,6 +99,38 @@ reflected or evaluated — and emits one `<Name>.schema.ts` per class plus an
 `index.ts` exporting a `SchemaBundle`. Generated output is build artifact:
 check it into `.gitignore` and run `extract` before `build`.
 
+### Or skip the compiler
+
+Decorators need `experimentalDecorators`, an extraction step, and generated
+files. If your domain types are interfaces, or you'd rather have no codegen
+at all, build the same schemas at runtime:
+
+```ts
+import { defineSchema, field, type Infer } from "@sembl/core";
+
+const Address = defineSchema("Address", "Where a property is.", {
+  street: field.string("Street number and street name.").optional(),
+  city: field.string("City or municipality."),
+  zip: field.string("Postal code.").optional(),
+});
+
+const Listing = defineSchema("Listing", "A short-term rental listing as a host would describe it.", {
+  name: field.string("Display name for the listing.", { maxLength: 40 }),
+  amenities: field.valuesFrom("amenities", "Amenities the property offers.").array({ maxItems: 5 }),
+  kind: field.enum(["house", "flat"], "The property's primary type.").optional(),
+  address: field.object(Address, "Where the property is.").optional(),
+});
+type Listing = Infer<typeof Listing>;
+
+const listing = await coerce<Listing>(input, { provider, schema: Listing });
+```
+
+Both paths emit identical `RuntimeSchema` output — the compiler's fixtures
+round-trip through `defineSchema` in the test suite — so prompts and
+validation don't care which one you used. A defined schema carries a bundle
+of every schema it refers to, which the coercion functions pick up when you
+don't pass one, and `Infer<>` yields the type the class would have had.
+
 ### 3. Coerce
 
 ```ts
@@ -422,8 +454,8 @@ publish` here would ship manifests nobody can install.
 Early. The shape of the API is settling but nothing is 1.0. Known gaps, roughly
 in the order they bite:
 
-- **Classes only.** The compiler reads decorated classes; plain `interface`s
-  and `type`s are invisible to it.
+- **The compiler reads classes only.** Plain `interface`s and `type`s are
+  invisible to it; describe those with `defineSchema` instead.
 - **Constraints reach OpenAI through the prompt, not the schema.** Strict mode
   rejects a request outright if it carries a keyword it doesn't accept, and we
   couldn't establish which of `maxLength`/`minimum`/`pattern`/… it currently

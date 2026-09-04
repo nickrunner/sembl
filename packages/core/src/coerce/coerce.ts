@@ -6,6 +6,7 @@ import { CoerceError } from "../errors/coerce-error.js";
 import { EnumResolutionError } from "../errors/enum-resolution-error.js";
 import { runtimeSchemaToJsonSchema } from "../schema/json-schema.js";
 import { resolveEnumSources } from "../schema/resolve-enum-sources.js";
+import { bundleOf } from "../schema/define.js";
 import type { FieldValidationIssue } from "../errors/coerce-error.js";
 import { buildPrompt } from "./prompt-builder.js";
 import { buildRepairInput } from "./repair.js";
@@ -168,7 +169,10 @@ export async function runCoercion(
   options: CoerceOptions,
   { mode, provenance }: RunOptions,
 ): Promise<CoercionRun> {
-  const { provider, schema, bundle, enumResolver, traceSinks } = options;
+  const { provider, schema, enumResolver, traceSinks } = options;
+  // A schema made by defineSchema carries its own bundle; an explicit one
+  // still wins, for callers assembling a registry themselves.
+  const bundle = options.bundle ?? bundleOf(schema);
   const maxRepairAttempts = options.maxRepairAttempts ?? 0;
   if (!Number.isInteger(maxRepairAttempts) || maxRepairAttempts < 0) {
     throw new RangeError(

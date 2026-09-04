@@ -28,6 +28,10 @@ export type {
 } from "./schema/resolve-enum-sources.js";
 export { SchemaRegistry } from "./schema/registry.js";
 
+// Runtime schema definition (no decorators, no compile step)
+export { defineSchema, field, bundleOf } from "./schema/define.js";
+export type { DefinedSchema, FieldBuilder, Infer, InferFields } from "./schema/define.js";
+
 // Decorators
 export { Schema, Describe, Constrain, ValuesFrom } from "./decorators.js";
 
