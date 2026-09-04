@@ -52,6 +52,9 @@ OpenAI provider implementing the `Provider` interface. Converts `RuntimeSchema` 
 ### @sembl/source-html
 Zero-dependency HTML → text for extraction: title and meta tags, then JSON-LD, then body text, so head-keeping truncation preserves the structured parts.
 
+### @sembl/testing
+Node-only test support: `RecordingProvider` / `ReplayProvider` (request/response pairs on disk, keyed by a hash of what reached the model) and the eval harness behind `sembl eval`.
+
 ### @sembl/examples (private)
 Demo schemas (`Address`, `Profile`, `PromptIntent`) and a `demo.ts` showing fluent API chaining.
 

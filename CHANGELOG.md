@@ -7,6 +7,12 @@ entry covers a release.
 
 ## Unreleased
 
+- New package `@sembl/testing`: `RecordingProvider` writes request/response
+  pairs to a directory keyed by what reached the model; `ReplayProvider`
+  answers from them offline, throwing `ReplayMissError` on a miss unless a
+  fallback provider records it. `replayOrRecord(dir, live?)` is the usual
+  arrangement for tests that run with credentials locally and without in CI.
+
 - `defineSchema` and `field` build a `RuntimeSchema` at runtime with no
   decorators or compile step, emitting exactly what `sembl extract` would for
   the equivalent class. A defined schema carries the bundle of every schema

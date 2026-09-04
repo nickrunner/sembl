@@ -410,6 +410,7 @@ or your own logger.
 | `@sembl/provider-anthropic` | Anthropic provider                                                  |
 | `@sembl/provider-openai`    | OpenAI provider                                                     |
 | `@sembl/source-html`        | HTML → readable text, JSON-LD and meta first                        |
+| `@sembl/testing`            | record/replay providers, eval harness                               |
 | `@sembl/examples`           | runnable demo (private)                                             |
 
 ## Development
