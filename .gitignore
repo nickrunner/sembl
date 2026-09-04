@@ -8,3 +8,7 @@ packages/examples/src/generated/
 
 # Agent worktrees
 .claude/worktrees/
+
+# Local secrets
+.env
+.env.*
