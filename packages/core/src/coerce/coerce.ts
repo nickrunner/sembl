@@ -142,13 +142,13 @@ async function resolveEnums(
 }
 
 /** What a pipeline run produced, before mode-specific post-processing. */
-interface CoercionRun {
+export interface CoercionRun {
   data: Record<string, unknown>;
   provenance: Record<string, FieldProvenance>;
   issues: ResolvedIssue[];
 }
 
-interface RunOptions {
+export interface RunOptions {
   mode: "coerce" | "partialCoerce";
   /** Ask the model to annotate each field with where the value came from. */
   provenance: boolean;
@@ -163,7 +163,7 @@ interface RunOptions {
  * which validator decides whether the response is acceptable, and in whether
  * the request is wrapped for provenance.
  */
-async function runCoercion(
+export async function runCoercion(
   input: CoerceInput,
   options: CoerceOptions,
   { mode, provenance }: RunOptions,
@@ -393,7 +393,7 @@ function pruneProvenance(
 }
 
 /** Drop nulls, which a partial result reports as absence. */
-function stripNulls(data: Record<string, unknown>): Record<string, unknown> {
+export function stripNulls(data: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     if (value !== null) {

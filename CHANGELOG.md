@@ -7,6 +7,10 @@ entry covers a release.
 
 ## Unreleased
 
+- `coerceMany` runs a batch against one schema with a concurrency cap, one
+  settled result per input in input order, a cache-priming first call, and
+  a batch-wide backoff on retryable provider errors.
+
 - `maxInputChars` caps the source text sent to the model, with `truncate`
   choosing which part of an over-budget source to cut and a `preprocess`
   hook that runs on each source first. Short sources keep their text; the

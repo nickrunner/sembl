@@ -225,6 +225,37 @@ extract from, not an instruction. A closing tag inside a source is escaped so
 no source can end its own block early. With several sources, provenance also
 reports which one each value was read from (`provenance.name.source`).
 
+## Batches
+
+The realistic workload is N records against one schema. `coerceMany` owns
+the loop, the concurrency cap and the backoff, and hands back one settled
+result per input, in input order:
+
+```ts
+const results = await coerceMany<Partial<Listing>>(pages, {
+  provider,
+  schema,
+  mode: "partialCoerce",
+  onInvalidField: "clamp",
+  concurrency: 4,
+  onItem: (r) => progress.tick(r.index, r.ok),
+});
+
+for (const r of results) {
+  if (r.ok) save(r.index, r.data, r.issues);
+  else retryLater(r.index, r.error);
+}
+```
+
+One failure never rejects the batch. The first item runs alone before the
+rest fan out, so a provider that caches the prompt prefix writes it once and
+every later item reads it (`primeCache: false` to skip). A retryable
+provider error — a 429, an overload, a dropped connection — pauses the whole
+batch rather than each item rediscovering the limit, with a delay that
+doubles per consecutive failure and resets on success (`retry` tunes it).
+Pass `provenance: true` for per-field provenance on every item, and a
+`signal` to stop starting new items.
+
 ## Budgeting the input
 
 Scraped HTML is routinely 60k+ characters. Rather than guessing a safe cap in

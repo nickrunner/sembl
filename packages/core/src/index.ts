@@ -56,6 +56,10 @@ export {
 } from "./coerce/coerce.js";
 export type { CoerceOptions, PreprocessSource } from "./coerce/coerce.js";
 
+// Batches
+export { coerceMany } from "./coerce/coerce-many.js";
+export type { CoerceManyOptions, CoerceManyResult, RetryOptions } from "./coerce/coerce-many.js";
+
 // Input budgeting
 export { budgetSources } from "./coerce/budget.js";
 export type { TruncatePolicy, TruncationRecord, BudgetResult } from "./coerce/budget.js";
