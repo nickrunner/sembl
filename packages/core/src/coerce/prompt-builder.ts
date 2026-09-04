@@ -5,6 +5,7 @@ import type {
   SchemaBundle,
 } from "../schema/types.js";
 import type { ResolvedEnums } from "../schema/enum-source.js";
+import { SOURCE_INSTRUCTIONS } from "./sources.js";
 
 /**
  * Options for prompt generation.
@@ -196,8 +197,11 @@ export function buildPrompt(
   }
 
   lines.push("");
+  lines.push(SOURCE_INSTRUCTIONS);
+
+  lines.push("");
   lines.push("Instructions:");
-  lines.push("- Extract values from the user's input that match the schema fields.");
+  lines.push("- Extract values from the sources that match the schema fields.");
   lines.push("- Use null for optional fields that cannot be determined from the input.");
   lines.push("- Required fields must always have a valid, non-null value.");
   lines.push("- Interpret the user's input semantically — infer meaning, don't just pattern match.");

@@ -23,6 +23,11 @@ export interface FieldProvenance {
    * was inferred rather than read — which is itself the signal worth showing.
    */
   evidence?: string;
+  /**
+   * The label of the source the value was read from. Only present when the
+   * coercion was given more than one source.
+   */
+  source?: string;
 }
 
 /** A coercion result paired with per-field provenance. */
@@ -68,12 +73,32 @@ export const PROVENANCE_INSTRUCTIONS = [
   "  normal, and marking the guess honestly is more useful than looking sure.",
 ].join("\n");
 
+/** Options for {@link toProvenanceSchema} and {@link provenanceInstructions}. */
+export interface ProvenanceOptions {
+  /**
+   * Labels of the sources the coercion was given, when there are several.
+   * Each annotation then also asks which source the value was read from.
+   */
+  sourceLabels?: readonly string[];
+}
+
+/**
+ * The provenance guidance for a run, extended with the source rule when the
+ * run has several sources to choose between.
+ */
+export function provenanceInstructions(options: ProvenanceOptions = {}): string {
+  const labels = options.sourceLabels ?? [];
+  if (labels.length < 2) return PROVENANCE_INSTRUCTIONS;
+  return `${PROVENANCE_INSTRUCTIONS}\n- Set \`source\` to the label of the source the value was read from.`;
+}
+
 /**
  * Build the annotation schema wrapping one field's value.
  */
 function annotationSchema(
   parentId: string,
   field: FieldDescriptor,
+  sourceLabels: readonly string[],
 ): RuntimeSchema {
   const valueField: FieldDescriptor = {
     name: "value",
@@ -101,6 +126,16 @@ function annotationSchema(
         type: { kind: "string" },
         required: false,
       },
+      ...(sourceLabels.length >= 2
+        ? [
+            {
+              name: "source",
+              description: "The label of the source this value was read from.",
+              type: { kind: "enum" as const, values: [...sourceLabels] },
+              required: false,
+            },
+          ]
+        : []),
     ],
   };
 }
@@ -120,12 +155,14 @@ function annotationSchema(
 export function toProvenanceSchema(
   schema: RuntimeSchema,
   bundle?: SchemaBundle,
+  options: ProvenanceOptions = {},
 ): { schema: RuntimeSchema; bundle: SchemaBundle } {
   const schemas: Record<string, RuntimeSchema> = { ...(bundle?.schemas ?? {}) };
   const fields: FieldDescriptor[] = [];
+  const sourceLabels = options.sourceLabels ?? [];
 
   for (const field of schema.fields) {
-    const annotation = annotationSchema(schema.id, field);
+    const annotation = annotationSchema(schema.id, field, sourceLabels);
     schemas[annotation.id] = annotation;
     fields.push({
       name: field.name,
@@ -182,9 +219,11 @@ export function splitProvenance(
 
     if (isConfidence(record.confidence)) {
       const evidence = record.evidence;
+      const source = record.source;
       provenance[field.name] = {
         confidence: record.confidence,
         ...(typeof evidence === "string" && evidence.length > 0 ? { evidence } : {}),
+        ...(typeof source === "string" && source.length > 0 ? { source } : {}),
       };
     }
   }

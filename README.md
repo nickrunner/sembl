@@ -202,6 +202,29 @@ path is untouched. It's off by default because it also multiplies worst-case
 latency — but for extraction from scraped HTML or third-party payloads, `1` is
 usually the right setting.
 
+## More than one source
+
+Real extraction often has several inputs for one target — an Airbnb page and
+a Vrbo page for the same property, a PDF and the email it came with. Every
+coercion takes a string, one labelled source, or a list of them:
+
+```ts
+const listing = await coerce<Listing>(
+  [
+    { label: "Airbnb listing", text: airbnbText },
+    { label: "Vrbo listing", text: vrboText },
+  ],
+  { provider, schema },
+);
+```
+
+Each source is rendered as its own delimited block in the user message, and
+the system prompt tells the model that everything inside those blocks is data:
+a scraped page reading "ignore previous instructions" is part of the text to
+extract from, not an instruction. A closing tag inside a source is escaped so
+no source can end its own block early. With several sources, provenance also
+reports which one each value was read from (`provenance.name.source`).
+
 ## Knowing what to trust
 
 A pre-filled form needs to distinguish what was read from the input from what
@@ -219,6 +242,9 @@ const { data, provenance } = await partialCoerceWithProvenance<Listing>(listingH
 //   sleeps: { confidence: "medium", evidence: "sleeps 6" },
 // }
 ```
+
+With several sources, each entry also carries `source`, the label of the one
+the value was read from.
 
 Confidence is a three-level scale rather than a number: models are poorly
 calibrated at producing a 0–1 score, and a review UI only needs to decide

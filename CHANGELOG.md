@@ -7,6 +7,13 @@ entry covers a release.
 
 ## Unreleased
 
+- Coercions accept a string, a labelled `Source`, or a list of sources. Each
+  is rendered as a delimited `<source>` block, the system prompt instructs the
+  model to treat everything inside a block as data rather than instructions,
+  and a closing tag inside a source is escaped so it cannot break out. With
+  several sources, provenance gains `source`, the label a value was read
+  from. `sembl()` passes sources through its first link untouched.
+
 - `onInvalidField: "throw" | "drop" | "clamp"` on every coercion, `sembl()`,
   and the global config. `"drop"` removes an invalid optional value (or any
   top-level value in a partial coercion) instead of failing the whole

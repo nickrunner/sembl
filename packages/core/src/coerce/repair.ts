@@ -14,8 +14,10 @@ function renderReceived(received: unknown): string {
 }
 
 /**
- * Build the input for a repair attempt: the original input, the output that
- * was rejected, and what was wrong with it.
+ * Build the input for a repair attempt: the original input (already rendered
+ * as delimited source blocks), the output that was rejected, and what was
+ * wrong with it. The correction sits outside the source blocks, where the
+ * system prompt says instructions live.
  *
  * The `Provider` interface is single-turn, so the correction has to travel as
  * user text rather than as a real assistant turn. In practice that reads to

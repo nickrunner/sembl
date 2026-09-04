@@ -56,15 +56,27 @@ export {
 } from "./coerce/coerce.js";
 export type { CoerceOptions } from "./coerce/coerce.js";
 
+// Sources
+export {
+  toSources,
+  renderSources,
+  isSource,
+  isCoerceInput,
+  SOURCE_INSTRUCTIONS,
+} from "./coerce/sources.js";
+export type { Source, CoerceInput } from "./coerce/sources.js";
+
 // Provenance
 export {
   toProvenanceSchema,
   splitProvenance,
+  provenanceInstructions,
   PROVENANCE_INSTRUCTIONS,
 } from "./coerce/provenance.js";
 export type {
   FieldConfidence,
   FieldProvenance,
+  ProvenanceOptions,
   ProvenanceResult,
 } from "./coerce/provenance.js";
 

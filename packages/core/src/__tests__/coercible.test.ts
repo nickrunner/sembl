@@ -94,9 +94,9 @@ describe("sembl + Coercible", () => {
     expect(result.target).toBe("route");
 
     // First call receives the original input
-    expect(inputs[0]).toBe("I love cycling");
+    expect(inputs[0]).toBe("<source>\nI love cycling\n</source>");
     // Second call receives JSON of the partial result (nulls stripped)
-    expect(inputs[1]).toBe(JSON.stringify({ name: "Alice" }));
+    expect(inputs[1]).toBe(`<source>\n${JSON.stringify({ name: "Alice" })}\n</source>`);
   });
 
   it("serializes object input to JSON", async () => {
@@ -110,7 +110,7 @@ describe("sembl + Coercible", () => {
 
     await sembl({ foo: "bar", num: 42 }, { provider }).coerceTo(intentSchema);
 
-    expect(capturedInput).toBe(JSON.stringify({ foo: "bar", num: 42 }));
+    expect(capturedInput).toBe(`<source>\n${JSON.stringify({ foo: "bar", num: 42 })}\n</source>`);
   });
 
   it("is thenable — await works directly after coerceTo", async () => {
@@ -233,5 +233,31 @@ describe("Coercible carries the enum resolver through a chain", () => {
     await expect(sembl("input").coerceTo(taggedSchema)).rejects.toThrow(
       EnumResolutionError,
     );
+  });
+});
+
+describe("sembl with labelled sources", () => {
+  it("passes sources through the first link untouched", async () => {
+    let captured = "";
+    const provider: Provider = {
+      async complete(request) {
+        captured = request.userInput;
+        return { data: { name: "Ada" } };
+      },
+    };
+    const schema: RuntimeSchema = {
+      id: "Person",
+      description: "A person.",
+      fields: [{ name: "name", description: "Name", type: { kind: "string" }, required: true }],
+    };
+    await sembl(
+      [
+        { label: "Email", text: "From Ada" },
+        { label: "Form", text: "A." },
+      ],
+      { provider },
+    ).coerceTo(schema);
+    expect(captured).toContain('<source label="Email">');
+    expect(captured).toContain('<source label="Form">');
   });
 });

@@ -10,10 +10,12 @@ import type { FieldValidationIssue } from "../errors/coerce-error.js";
 import { buildPrompt } from "./prompt-builder.js";
 import { buildRepairInput } from "./repair.js";
 import {
-  PROVENANCE_INSTRUCTIONS,
+  provenanceInstructions,
   splitProvenance,
   toProvenanceSchema,
 } from "./provenance.js";
+import { renderSources, toSources } from "./sources.js";
+import type { CoerceInput } from "./sources.js";
 import type { FieldProvenance, ProvenanceResult } from "./provenance.js";
 import { validateStrict, validatePartial } from "./validator.js";
 import { resolveIssues } from "./resolve-issues.js";
@@ -137,7 +139,7 @@ interface RunOptions {
  * the request is wrapped for provenance.
  */
 async function runCoercion(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
   { mode, provenance }: RunOptions,
 ): Promise<CoercionRun> {
@@ -155,11 +157,16 @@ async function runCoercion(
     );
   }
 
+  // Normalised up front so a bad input fails before any span is opened.
+  const sources = toSources(input);
+  const sourceLabels = sources.length > 1 ? sources.map((s) => s.label ?? "") : [];
+
   const tracer = new Tracer(traceSinks);
   const rootSpan = tracer.startSpan(mode, {
     schemaId: schema.id,
     provenance,
     onInvalidField,
+    sourceCount: sources.length,
   });
 
   try {
@@ -180,7 +187,7 @@ async function runCoercion(
     const promptSpan = tracer.startSpan("buildPrompt", {}, rootSpan);
     const basePrompt = buildPrompt(schema, bundle, { resolvedEnums });
     const systemPrompt = provenance
-      ? `${basePrompt}\n${PROVENANCE_INSTRUCTIONS}`
+      ? `${basePrompt}\n${provenanceInstructions({ sourceLabels })}`
       : basePrompt;
     tracer.addEvent(promptSpan, "promptBuilt", {
       promptLength: systemPrompt.length,
@@ -188,7 +195,7 @@ async function runCoercion(
     tracer.endSpan(promptSpan);
 
     const request = provenance
-      ? toProvenanceSchema(schema, bundle)
+      ? toProvenanceSchema(schema, bundle, { sourceLabels })
       : { schema, bundle };
 
     const schemaSpan = tracer.startSpan("buildJsonSchema", {}, rootSpan);
@@ -198,7 +205,12 @@ async function runCoercion(
     tracer.endSpan(schemaSpan);
 
     const validate = mode === "coerce" ? validateStrict : validatePartial;
-    let userInput = input;
+    const renderedInput = renderSources(sources);
+    tracer.addEvent(rootSpan, "inputRendered", {
+      sourceCount: sources.length,
+      inputLength: renderedInput.length,
+    });
+    let userInput = renderedInput;
     let issues: FieldValidationIssue[] = [];
     let run: CoercionRun = { data: {}, provenance: {}, issues: [] };
 
@@ -268,7 +280,7 @@ async function runCoercion(
         });
         // Feed back the unwrapped data: it is what the issues refer to, and
         // the schema still forces the wrapper shape on the way back.
-        userInput = buildRepairInput(input, run.data, issues);
+        userInput = buildRepairInput(renderedInput, run.data, issues);
       }
     }
 
@@ -313,7 +325,7 @@ function stripNulls(data: Record<string, unknown>): Record<string, unknown> {
  * Throws EnumResolutionError if a required field's enum source cannot be resolved.
  */
 export async function coerce<T>(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
 ): Promise<T> {
   const { data } = await runCoercion(input, options, {
@@ -331,7 +343,7 @@ export async function coerce<T>(
  * cannot be resolved.
  */
 export async function partialCoerce<T>(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
 ): Promise<Partial<T>> {
   const { data } = await runCoercion(input, options, {
@@ -350,7 +362,7 @@ export async function partialCoerce<T>(
  * than on a hot path.
  */
 export async function coerceWithProvenance<T>(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
 ): Promise<ProvenanceResult<T>> {
   const { data, provenance, issues } = await runCoercion(input, options, {
@@ -369,7 +381,7 @@ export async function coerceWithProvenance<T>(
  * trust them.
  */
 export async function partialCoerceWithProvenance<T>(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
 ): Promise<ProvenanceResult<Partial<T>>> {
   const { data, provenance, issues } = await runCoercion(input, options, {
