@@ -215,6 +215,32 @@ import { coerce, partialCoerce } from "@sembl/core";
 const address = await coerce<Address>(input, { provider, schema, bundle });
 ```
 
+## Hints the schema can't carry
+
+Descriptions say what a field *means*; some guidance is about this call, not
+the type — a fact about the source, context the model cannot see, a
+judgement call. Pass it as `instructions`:
+
+```ts
+const listing = await coerce<Listing>(page, {
+  provider,
+  schema,
+  instructions: [
+    "Prices on this site are shown in cents.",
+    "The property is in Portugal; quote the rate in EUR unless the page says otherwise.",
+    "Guest counts exclude infants.",
+  ],
+});
+```
+
+A string or a list of them. They render as their own section at the end of
+the system prompt, so they stay on the instruction side of the data boundary
+— a hint placed inside a source would be ignored by design, since source
+blocks are declared to never contain instructions. They reach every call of
+a run, repairs included, and are part of what a recording is keyed on. Set
+them per call, on `sembl()`, or globally via `SemblConfig.configure`; a
+per-call list replaces the global one rather than extending it.
+
 ## Chaining
 
 `sembl()` returns a thenable `Coercible`. Each link runs its own LLM call, with
@@ -445,7 +471,7 @@ by how much), `enumSourceFailed`, `repairAttempt`, and `issuesResolved` (what
 | `@sembl/provider-openai`    | OpenAI provider                                                     |
 | `@sembl/source-html`        | HTML → readable text, JSON-LD and meta first                        |
 | `@sembl/testing`            | record/replay providers, eval harness                               |
-| `@sembl/examples`           | twelve runnable examples (private)                                  |
+| `@sembl/examples`           | thirteen runnable examples (private)                                |
 
 ## Development
 
@@ -463,7 +489,7 @@ these steps.
 
 ## Examples
 
-`packages/examples` has twelve runnable examples, one per feature, from the
+`packages/examples` has thirteen runnable examples, one per feature, from the
 basics through batches, injection-resistant sources, HTML budgeting,
 provenance, tracing, replay and evals — see its
 [README](packages/examples/README.md). Build, put a key in

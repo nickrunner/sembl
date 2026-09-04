@@ -261,3 +261,30 @@ describe("sembl with labelled sources", () => {
     expect(captured).toContain('<source label="Form">');
   });
 });
+
+describe("sembl with instructions", () => {
+  afterEach(() => SemblConfig.reset());
+
+  const schema: RuntimeSchema = {
+    id: "Quote",
+    description: "A price quote.",
+    fields: [{ name: "price", description: "Price", type: { kind: "number" }, required: true }],
+  };
+
+  it("uses the global list unless the call overrides it", async () => {
+    const prompts: string[] = [];
+    const provider: Provider = {
+      async complete(request) {
+        prompts.push(request.systemPrompt);
+        return { data: { price: 1 } };
+      },
+    };
+    SemblConfig.configure({ provider, instructions: ["Global hint."] });
+    await sembl("x").coerceTo(schema);
+    await sembl("x", { instructions: "Call hint." }).coerceTo(schema);
+    expect(prompts[0]).toContain("- Global hint.");
+    expect(prompts[0]).not.toContain("Call hint.");
+    expect(prompts[1]).toContain("- Call hint.");
+    expect(prompts[1]).not.toContain("Global hint.");
+  });
+});

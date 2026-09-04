@@ -69,7 +69,11 @@ provider:
 export { Listing as schema } from "./dist/schemas.js";
 export const provider = new AnthropicProvider({ model: "claude-sonnet-5", apiKey: process.env.ANTHROPIC_API_KEY });
 export const prices = { inputPerMTok: 3, outputPerMTok: 15 };
-export const coerceOptions = { onInvalidField: "clamp", maxInputChars: 40_000 };
+export const coerceOptions = {
+  onInvalidField: "clamp",
+  maxInputChars: 40_000,
+  instructions: ["Guest counts exclude infants."],
+};
 ```
 
 ```sh

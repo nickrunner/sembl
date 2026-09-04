@@ -1,11 +1,11 @@
 # @sembl/examples
 
-Twelve runnable examples, one per feature, against a fictional set of rental
+Thirteen runnable examples, one per feature, against a fictional set of rental
 listings in `data/`.
 
 ```sh
 pnpm install && pnpm build            # from the repo root
-pnpm --filter @sembl/examples demo    # all twelve
+pnpm --filter @sembl/examples demo    # all of them
 pnpm --filter @sembl/examples demo 06 # one, by number
 pnpm --filter @sembl/examples demo batch eval   # several, by a word in the title
 ```
@@ -30,6 +30,7 @@ only calls whose prompt, schema or input changed go live again.
 | 10 | `ConsoleSink` and a custom sink adding up token usage                         |
 | 11 | `RecordingProvider` / `ReplayProvider` with a miss                            |
 | 12 | The eval harness over `evals/listing`, with deltas against the previous run   |
+| 13 | `instructions`: a per-call hint the schema can't carry, changing the result   |
 
 `pnpm --filter @sembl/examples eval` runs example 12's fixtures through the
 `sembl eval` CLI instead, using `src/support/eval-config.ts` as the config.

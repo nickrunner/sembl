@@ -22,6 +22,8 @@ export interface SemblGlobalConfig {
   maxRepairAttempts?: number;
   /** What to do with a present field that fails validation. Default "throw". */
   onInvalidField?: InvalidFieldPolicy;
+  /** Extra guidance rendered into every system prompt. */
+  instructions?: string | readonly string[];
   /** Cap on total source characters sent to the model. Unbounded by default. */
   maxInputChars?: number;
   /** Which part of an over-budget source to cut. Default "tail". */
@@ -46,6 +48,8 @@ export interface SemblCallConfig {
   maxRepairAttempts?: number;
   /** Override the invalid-field policy for this call */
   onInvalidField?: InvalidFieldPolicy;
+  /** Guidance for this call. Replaces, rather than extends, the global list. */
+  instructions?: string | readonly string[];
   /** Override the input character budget for this call */
   maxInputChars?: number;
   /** Override the truncation policy for this call */
@@ -64,6 +68,7 @@ export interface ResolvedConfig {
   traceSinks?: TraceSink[];
   maxRepairAttempts?: number;
   onInvalidField?: InvalidFieldPolicy;
+  instructions?: string | readonly string[];
   maxInputChars?: number;
   truncate?: TruncatePolicy;
   preprocess?: PreprocessSource;
@@ -112,6 +117,7 @@ export function resolveConfig(callConfig?: SemblCallConfig): ResolvedConfig {
     traceSinks: callConfig?.traceSinks ?? global.traceSinks,
     maxRepairAttempts: callConfig?.maxRepairAttempts ?? global.maxRepairAttempts,
     onInvalidField: callConfig?.onInvalidField ?? global.onInvalidField,
+    instructions: callConfig?.instructions ?? global.instructions,
     maxInputChars: callConfig?.maxInputChars ?? global.maxInputChars,
     truncate: callConfig?.truncate ?? global.truncate,
     preprocess: callConfig?.preprocess ?? global.preprocess,

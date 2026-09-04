@@ -660,3 +660,60 @@ describe("input budgeting", () => {
     expect(requests[0].userInput).toBe('<source label="Cleaned">\nclean\n</source>');
   });
 });
+
+describe("instructions", () => {
+  const priceSchema: RuntimeSchema = {
+    id: "Quote",
+    description: "A price quote.",
+    fields: [{ name: "price", description: "Price", type: { kind: "number" }, required: true }],
+  };
+
+  it("reach the system prompt on every call, repairs included", async () => {
+    const prompts: string[] = [];
+    let calls = 0;
+    const provider: Provider = {
+      async complete(request) {
+        prompts.push(request.systemPrompt);
+        calls += 1;
+        return { data: { price: calls === 1 ? "bad" : 250 } };
+      },
+    };
+    await coerce("$2.50", {
+      provider,
+      schema: priceSchema,
+      maxRepairAttempts: 1,
+      instructions: "Prices on this site are in cents.",
+    });
+    expect(prompts).toHaveLength(2);
+    for (const prompt of prompts) {
+      expect(prompt).toContain("Additional guidance for this extraction:\n- Prices on this site are in cents.");
+    }
+  });
+
+  it("stay in the system prompt, never inside a source block", async () => {
+    let request: ProviderRequest | undefined;
+    const provider: Provider = {
+      async complete(r) {
+        request = r;
+        return { data: { price: 1 } };
+      },
+    };
+    await coerce("input", { provider, schema: priceSchema, instructions: ["Assume EUR."] });
+    expect(request?.userInput).not.toContain("Assume EUR.");
+    expect(request?.systemPrompt).toContain("- Assume EUR.");
+  });
+
+  it("are validated before any provider call", async () => {
+    let calls = 0;
+    const provider: Provider = {
+      async complete() {
+        calls += 1;
+        return { data: { price: 1 } };
+      },
+    };
+    await expect(
+      coerce("x", { provider, schema: priceSchema, instructions: 42 as unknown as string }),
+    ).rejects.toThrow(RangeError);
+    expect(calls).toBe(0);
+  });
+});

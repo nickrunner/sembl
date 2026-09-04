@@ -5,6 +5,13 @@ packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
 `@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
 lockstep, so one entry covers a release.
 
+## Unreleased
+
+- `instructions` on every coercion, `sembl()` and the global config: caller
+  hints for this extraction, rendered as their own section at the end of the
+  system prompt so they stay outside the source data boundary. Reaches
+  repair calls and is part of the recording key.
+
 ## 0.2.1
 
 - Fixed: the OpenAI provider rebuilt its JSON Schema without the resolved

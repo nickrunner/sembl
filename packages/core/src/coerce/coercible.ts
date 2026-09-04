@@ -57,6 +57,7 @@ export class Coercible<T> implements PromiseLike<T> {
       traceSinks: this._config.traceSinks,
       maxRepairAttempts: this._config.maxRepairAttempts,
       onInvalidField: this._config.onInvalidField,
+      instructions: this._config.instructions,
       maxInputChars: this._config.maxInputChars,
       truncate: this._config.truncate,
       preprocess: this._config.preprocess,
