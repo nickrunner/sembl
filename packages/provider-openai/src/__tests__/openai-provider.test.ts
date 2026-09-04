@@ -121,3 +121,42 @@ describe("OpenAIProvider", () => {
     expect(Object.keys(sent.properties.address.properties)).toEqual(["city", "zip"]);
   });
 });
+
+describe("OpenAIProvider dynamic enums", () => {
+  it("puts resolved enum values into the response_format schema", async () => {
+    const provider = new OpenAIProvider({ model: "gpt-4o", apiKey: "test-key" });
+    const mockCreate = (provider as unknown as { client: { chat: { completions: { create: ReturnType<typeof vi.fn> } } } }).client.chat.completions.create;
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({ amenities: ["wifi"], kind: "cabin" }) } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+    const schema: RuntimeSchema = {
+      id: "Listing",
+      description: "A listing.",
+      fields: [
+        {
+          name: "amenities",
+          description: "Amenities",
+          type: { kind: "array", items: { kind: "dynamicEnum", sourceId: "amenities" } },
+          required: true,
+        },
+        { name: "kind", description: "Kind", type: { kind: "dynamicEnum", sourceId: "kinds" }, required: true },
+      ],
+    };
+
+    await provider.complete({
+      systemPrompt: "sys",
+      userInput: "in",
+      jsonSchema: {},
+      schema,
+      resolvedEnums: { amenities: ["wifi", "hot-tub"], kinds: ["cabin", "flat"] },
+    });
+
+    const sent = mockCreate.mock.calls[0][0].response_format.json_schema.schema as {
+      properties: { amenities: { items: { enum?: string[] } }; kind: { enum?: string[] } };
+    };
+    expect(sent.properties.amenities.items.enum).toEqual(["wifi", "hot-tub"]);
+    expect(sent.properties.kind.enum).toEqual(["cabin", "flat"]);
+  });
+});

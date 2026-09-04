@@ -1,4 +1,4 @@
-import type { RuntimeSchema, SchemaBundle } from "@sembl/core";
+import type { RuntimeSchema, SchemaBundle, ResolvedEnums } from "@sembl/core";
 import { toOpenAIJsonSchema } from "@sembl/core";
 import type OpenAI from "openai";
 
@@ -16,8 +16,12 @@ type ResponseFormatJSONSchema =
 export function toResponseFormat(
   schema: RuntimeSchema,
   bundle?: SchemaBundle,
+  resolvedEnums?: ResolvedEnums,
 ): ResponseFormatJSONSchema {
-  const jsonSchema = toOpenAIJsonSchema(schema, bundle);
+  // Re-deriving the schema here means the resolved enum values have to come
+  // along; without them every dynamicEnum field widens to a free-form string
+  // and the model is free to answer "Hot tub" where the taxonomy says "hot-tub".
+  const jsonSchema = toOpenAIJsonSchema(schema, bundle, { resolvedEnums });
 
   return {
     type: "json_schema",
