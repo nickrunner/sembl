@@ -1,6 +1,6 @@
 {
   "name": "@sembl/testing",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Record/replay providers and an eval harness for SEMBL: deterministic tests and measurable prompt changes.",
   "keywords": [
     "llm",

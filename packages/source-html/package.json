@@ -1,6 +1,6 @@
 {
   "name": "@sembl/source-html",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Turn an HTML page into readable text for SEMBL: JSON-LD and meta tags first, boilerplate stripped.",
   "keywords": [
     "llm",

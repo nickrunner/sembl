@@ -7,7 +7,7 @@ const program = new Command();
 program
   .name("sembl")
   .description("SEMBL schema compiler — extract runtime schemas from decorated TypeScript classes")
-  .version("0.1.0");
+  .version("0.2.1");
 
 program
   .command("extract")

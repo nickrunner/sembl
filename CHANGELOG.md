@@ -5,7 +5,7 @@ packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
 `@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
 lockstep, so one entry covers a release.
 
-## Unreleased
+## 0.2.1
 
 - Fixed: the OpenAI provider rebuilt its JSON Schema without the resolved
   enum values, so `@ValuesFrom` fields were free-form strings on OpenAI and
