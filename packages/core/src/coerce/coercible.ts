@@ -42,6 +42,7 @@ export class Coercible<T> implements PromiseLike<T> {
       enumResolver: this._config.enumResolver,
       traceSinks: this._config.traceSinks,
       maxRepairAttempts: this._config.maxRepairAttempts,
+      onInvalidField: this._config.onInvalidField,
     };
   }
 

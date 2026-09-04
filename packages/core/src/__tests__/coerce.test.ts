@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { coerce, partialCoerce } from "../coerce/coerce.js";
+import {
+  coerce,
+  partialCoerce,
+  coerceWithProvenance,
+  partialCoerceWithProvenance,
+} from "../coerce/coerce.js";
 import { CoerceError } from "../errors/coerce-error.js";
 import { EnumResolutionError } from "../errors/enum-resolution-error.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "../provider/types.js";
@@ -328,5 +333,154 @@ describe("tracing", () => {
       reason: "empty",
       required: false,
     });
+  });
+});
+
+describe("onInvalidField", () => {
+  const listingSchema: RuntimeSchema = {
+    id: "Listing",
+    description: "A rental listing.",
+    fields: [
+      { name: "name", description: "Name", type: { kind: "string" }, required: true },
+      {
+        name: "sleeps",
+        description: "Capacity",
+        type: { kind: "number" },
+        required: false,
+        constraints: { minimum: 1, maximum: 20 },
+      },
+      {
+        name: "tags",
+        description: "Tags",
+        type: { kind: "array", items: { kind: "string" } },
+        required: false,
+        constraints: { maxItems: 2 },
+      },
+    ],
+  };
+
+  function countingProvider(responses: Record<string, unknown>[]) {
+    const requests: ProviderRequest[] = [];
+    const provider: Provider = {
+      async complete(request) {
+        requests.push(request);
+        const data = responses[Math.min(requests.length - 1, responses.length - 1)];
+        return { data };
+      },
+    };
+    return { provider, requests };
+  }
+
+  it("rejects an unknown policy", async () => {
+    const { provider } = countingProvider([{ name: "x" }]);
+    await expect(
+      coerce("x", {
+        provider,
+        schema: listingSchema,
+        onInvalidField: "ignore" as unknown as "drop",
+      }),
+    ).rejects.toThrow(RangeError);
+  });
+
+  it("drops an invalid optional field instead of throwing", async () => {
+    const { provider } = countingProvider([{ name: "Cabin", sleeps: 200, tags: ["a"] }]);
+    const result = await partialCoerce<{ name: string; sleeps?: number }>("x", {
+      provider,
+      schema: listingSchema,
+      onInvalidField: "drop",
+    });
+    expect(result).toEqual({ name: "Cabin", tags: ["a"] });
+  });
+
+  it("clamps where a bound makes sense", async () => {
+    const { provider } = countingProvider([{ name: "Cabin", sleeps: 200, tags: ["a", "b", "c"] }]);
+    const result = await coerce<{ name: string; sleeps?: number; tags?: string[] }>("x", {
+      provider,
+      schema: listingSchema,
+      onInvalidField: "clamp",
+    });
+    expect(result).toEqual({ name: "Cabin", sleeps: 20, tags: ["a", "b"] });
+  });
+
+  it("still throws for a required field a drop cannot absorb", async () => {
+    const { provider } = countingProvider([{ name: 42, sleeps: 3 }]);
+    await expect(
+      coerce("x", { provider, schema: listingSchema, onInvalidField: "drop" }),
+    ).rejects.toThrow(CoerceError);
+  });
+
+  it("does not spend a repair round on issues the policy can absorb", async () => {
+    const { provider, requests } = countingProvider([{ name: "Cabin", sleeps: 200 }]);
+    const result = await coerce<{ name: string }>("x", {
+      provider,
+      schema: listingSchema,
+      onInvalidField: "drop",
+      maxRepairAttempts: 2,
+    });
+    expect(result).toEqual({ name: "Cabin" });
+    expect(requests).toHaveLength(1);
+  });
+
+  it("still repairs issues the policy cannot absorb", async () => {
+    const { provider, requests } = countingProvider([
+      { name: 42, sleeps: 200 },
+      { name: "Cabin", sleeps: 200 },
+    ]);
+    const result = await coerce<{ name: string }>("x", {
+      provider,
+      schema: listingSchema,
+      onInvalidField: "drop",
+      maxRepairAttempts: 1,
+    });
+    expect(requests).toHaveLength(2);
+    expect(result).toEqual({ name: "Cabin" });
+  });
+
+  it("reports resolved issues and prunes provenance of dropped fields", async () => {
+    const { provider } = countingProvider([
+      {
+        name: { value: "Cabin", confidence: "high", evidence: "Cabin" },
+        sleeps: { value: 200, confidence: "low" },
+        tags: { value: ["a"], confidence: "medium" },
+      },
+    ]);
+    const result = await partialCoerceWithProvenance<{ name: string; sleeps?: number }>("x", {
+      provider,
+      schema: listingSchema,
+      onInvalidField: "drop",
+    });
+    expect(result.data).toEqual({ name: "Cabin", tags: ["a"] });
+    expect(result.issues).toMatchObject([{ path: "sleeps", resolution: "dropped" }]);
+    expect(Object.keys(result.provenance).sort()).toEqual(["name", "tags"]);
+  });
+
+  it("returns an empty issue list when nothing needed resolving", async () => {
+    const { provider } = countingProvider([{ name: { value: "Cabin", confidence: "high" } }]);
+    const result = await coerceWithProvenance<{ name: string }>("x", {
+      provider,
+      schema: listingSchema,
+      onInvalidField: "clamp",
+    });
+    expect(result.issues).toEqual([]);
+  });
+
+  it("records the resolution as a trace event", async () => {
+    const { provider } = countingProvider([{ name: "Cabin", sleeps: 200 }]);
+    const events: { name: string; attributes: Record<string, unknown> }[] = [];
+    const sink: TraceSink = {
+      write(span: TraceSpan) {
+        for (const event of span.events) {
+          events.push({ name: event.name, attributes: event.attributes ?? {} });
+        }
+      },
+    };
+    await partialCoerce("x", {
+      provider,
+      schema: listingSchema,
+      onInvalidField: "clamp",
+      traceSinks: [sink],
+    });
+    const event = events.find((e) => e.name === "issuesResolved");
+    expect(event?.attributes).toMatchObject({ policy: "clamp", clamped: ["sleeps"], dropped: [] });
   });
 });

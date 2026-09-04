@@ -3,6 +3,7 @@ import type {
   RuntimeSchema,
   SchemaBundle,
 } from "../schema/types.js";
+import type { ResolvedIssue } from "./resolve-issues.js";
 
 /**
  * How well the input supported a value.
@@ -30,6 +31,12 @@ export interface ProvenanceResult<T> {
   data: T;
   /** Provenance for each top-level field the model returned, keyed by name. */
   provenance: Record<string, FieldProvenance>;
+  /**
+   * Validation issues the `onInvalidField` policy absorbed instead of
+   * throwing — each with what was dropped or clamped. Empty under the
+   * default `"throw"` policy, or when the response validated cleanly.
+   */
+  issues: ResolvedIssue[];
 }
 
 /** Suffix marking the wrapper schema built around a target schema. */

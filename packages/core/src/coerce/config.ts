@@ -2,6 +2,7 @@ import type { Provider } from "../provider/types.js";
 import type { SchemaBundle } from "../schema/types.js";
 import type { EnumResolver } from "../schema/enum-source.js";
 import type { TraceSink } from "../tracing/types.js";
+import type { InvalidFieldPolicy } from "./resolve-issues.js";
 
 /**
  * Configuration options shared by global and per-call config.
@@ -17,6 +18,8 @@ export interface SemblGlobalConfig {
   traceSinks?: TraceSink[];
   /** How many times to send validation failures back for correction. Default 0. */
   maxRepairAttempts?: number;
+  /** What to do with a present field that fails validation. Default "throw". */
+  onInvalidField?: InvalidFieldPolicy;
 }
 
 /**
@@ -33,6 +36,8 @@ export interface SemblCallConfig {
   traceSinks?: TraceSink[];
   /** Override the repair attempt budget for this call */
   maxRepairAttempts?: number;
+  /** Override the invalid-field policy for this call */
+  onInvalidField?: InvalidFieldPolicy;
 }
 
 /**
@@ -44,6 +49,7 @@ export interface ResolvedConfig {
   enumResolver?: EnumResolver;
   traceSinks?: TraceSink[];
   maxRepairAttempts?: number;
+  onInvalidField?: InvalidFieldPolicy;
 }
 
 /**
@@ -88,5 +94,6 @@ export function resolveConfig(callConfig?: SemblCallConfig): ResolvedConfig {
     enumResolver: callConfig?.enumResolver ?? global.enumResolver,
     traceSinks: callConfig?.traceSinks ?? global.traceSinks,
     maxRepairAttempts: callConfig?.maxRepairAttempts ?? global.maxRepairAttempts,
+    onInvalidField: callConfig?.onInvalidField ?? global.onInvalidField,
   };
 }

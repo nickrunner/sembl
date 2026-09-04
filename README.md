@@ -128,6 +128,8 @@ const profile = await sembl(
 | --------------------- | ------------------------------------------------ | -------------------------------------------------- |
 | Missing required field | throws `CoerceError`                             | allowed                                             |
 | Wrong type on a present field | throws `CoerceError`                     | throws `CoerceError`                                |
+| …with `onInvalidField: "drop"` | dropped if optional, else throws        | dropped                                             |
+| …with `onInvalidField: "clamp"` | cut to its bound, else as `"drop"`     | cut to its bound, else dropped                      |
 | Returns               | `T`                                              | `Partial<T>`, with `null`s stripped                 |
 | Use for               | a value the next step depends on                 | pre-filling a form the user will review             |
 
@@ -135,6 +137,30 @@ const profile = await sembl(
 `received` — so a form can surface per-field problems rather than one opaque
 failure. Violated `@Constrain` bounds and values outside a resolved
 `@ValuesFrom` set are issues like any type mismatch.
+
+By default one bad field fails the whole extraction. For a form pre-fill that
+is the wrong failure unit — losing twenty good fields because `sleeps` came
+back as `200` is worse than losing `sleeps` — so both coercions take an
+`onInvalidField` policy:
+
+```ts
+const { data, provenance, issues } = await partialCoerceWithProvenance<Listing>(html, {
+  provider,
+  schema,
+  onInvalidField: "clamp",
+});
+// issues → [{ path: "sleeps", resolution: "clamped", replacement: 20, … }]
+```
+
+`"drop"` removes the smallest thing that can go — an array element, an
+optional field, or in `partialCoerce` any top-level field — and walks up from
+a bad nested value to the nearest of those. `"clamp"` cuts a value down to its
+`maxLength`, `minimum`, `maximum` or `maxItems` where that is meaningful and
+drops it otherwise. A violation only a required field can absorb still throws
+in either mode. Issues the policy absorbs never cost a repair round; the
+provenance variants report them in `issues`, and every run records an
+`issuesResolved` trace event. Set it per call, on `sembl()`, or globally via
+`SemblConfig.configure`.
 
 If a source backing a **required** field fails to resolve, both coercions throw
 `EnumResolutionError` instead of quietly widening the field to a free-form

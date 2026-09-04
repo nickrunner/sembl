@@ -7,6 +7,15 @@ entry covers a release.
 
 ## Unreleased
 
+- `onInvalidField: "throw" | "drop" | "clamp"` on every coercion, `sembl()`,
+  and the global config. `"drop"` removes an invalid optional value (or any
+  top-level value in a partial coercion) instead of failing the whole
+  extraction; `"clamp"` cuts strings, numbers and arrays to their bounds
+  first. Required fields still throw. Absorbed issues skip the repair loop,
+  come back as `issues` on the provenance results, and are traced. The
+  resolver is exported as `resolveIssues` for callers using the validators
+  directly.
+
 - All packages now ship CommonJS alongside ESM, with `.d.cts` types for the
   `require` condition. The `sembl` CLI stays ESM-only.
 

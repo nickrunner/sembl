@@ -68,6 +68,16 @@ export type {
   ProvenanceResult,
 } from "./coerce/provenance.js";
 
+// Invalid-field policy
+export { resolveIssues } from "./coerce/resolve-issues.js";
+export type {
+  InvalidFieldPolicy,
+  IssueResolution,
+  ResolvedIssue,
+  ResolveIssuesOptions,
+  ResolveIssuesResult,
+} from "./coerce/resolve-issues.js";
+
 // Repair
 export { buildRepairInput } from "./coerce/repair.js";
 

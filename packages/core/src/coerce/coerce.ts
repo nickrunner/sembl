@@ -16,6 +16,8 @@ import {
 } from "./provenance.js";
 import type { FieldProvenance, ProvenanceResult } from "./provenance.js";
 import { validateStrict, validatePartial } from "./validator.js";
+import { resolveIssues } from "./resolve-issues.js";
+import type { InvalidFieldPolicy, ResolvedIssue } from "./resolve-issues.js";
 import { Tracer } from "../tracing/tracer.js";
 
 /**
@@ -43,7 +45,19 @@ export interface CoerceOptions {
    * usually the right setting.
    */
   maxRepairAttempts?: number;
+  /**
+   * What to do with a present field that fails validation: `"throw"` (the
+   * default), `"drop"` it, or `"clamp"` it to its bounds where that is
+   * meaningful and drop it otherwise. Required fields are never dropped.
+   *
+   * Issues the policy can absorb never trigger a repair round; the provenance
+   * variants report them in `issues`, and every run records them in a trace
+   * event.
+   */
+  onInvalidField?: InvalidFieldPolicy;
 }
+
+const INVALID_FIELD_POLICIES: readonly InvalidFieldPolicy[] = ["throw", "drop", "clamp"];
 
 /**
  * Resolve every dynamic enum source the schema reaches, under its own span.
@@ -104,6 +118,7 @@ async function resolveEnums(
 interface CoercionRun {
   data: Record<string, unknown>;
   provenance: Record<string, FieldProvenance>;
+  issues: ResolvedIssue[];
 }
 
 interface RunOptions {
@@ -133,9 +148,19 @@ async function runCoercion(
       `maxRepairAttempts must be a non-negative integer, got ${String(options.maxRepairAttempts)}`,
     );
   }
+  const onInvalidField = options.onInvalidField ?? "throw";
+  if (!INVALID_FIELD_POLICIES.includes(onInvalidField)) {
+    throw new RangeError(
+      `onInvalidField must be one of ${INVALID_FIELD_POLICIES.join(", ")}, got ${String(options.onInvalidField)}`,
+    );
+  }
 
   const tracer = new Tracer(traceSinks);
-  const rootSpan = tracer.startSpan(mode, { schemaId: schema.id, provenance });
+  const rootSpan = tracer.startSpan(mode, {
+    schemaId: schema.id,
+    provenance,
+    onInvalidField,
+  });
 
   try {
     // Sources are resolved against the target schema even in a provenance run:
@@ -175,7 +200,7 @@ async function runCoercion(
     const validate = mode === "coerce" ? validateStrict : validatePartial;
     let userInput = input;
     let issues: FieldValidationIssue[] = [];
-    let run: CoercionRun = { data: {}, provenance: {} };
+    let run: CoercionRun = { data: {}, provenance: {}, issues: [] };
 
     for (let attempt = 0; attempt <= maxRepairAttempts; attempt++) {
       const llmSpan = tracer.startSpan("llmCall", { attempt }, rootSpan);
@@ -191,17 +216,49 @@ async function runCoercion(
       tracer.endSpan(llmSpan);
 
       run = provenance
-        ? splitProvenance(response.data, schema)
-        : { data: response.data, provenance: {} };
+        ? { ...splitProvenance(response.data, schema), issues: [] }
+        : { data: response.data, provenance: {}, issues: [] };
 
       const validationSpan = tracer.startSpan("validate", { attempt }, rootSpan);
       issues = validate(run.data, schema, bundle, { resolvedEnums });
       tracer.addEvent(validationSpan, "validated", { issueCount: issues.length });
-      tracer.endSpan(validationSpan);
 
       if (issues.length === 0) {
+        tracer.endSpan(validationSpan);
         return run;
       }
+
+      // A policy that can absorb every issue makes the response acceptable
+      // as it stands, so it must not cost a repair round. Anything it cannot
+      // absorb — a required field, at any depth — goes back to the model.
+      if (onInvalidField !== "throw") {
+        const outcome = resolveIssues(run.data, issues, schema, {
+          bundle,
+          resolvedEnums,
+          mode,
+          policy: onInvalidField,
+        });
+        tracer.addEvent(validationSpan, "issuesResolved", {
+          policy: onInvalidField,
+          dropped: outcome.resolved
+            .filter((r) => r.resolution === "dropped")
+            .map((r) => r.resolvedPath),
+          clamped: outcome.resolved
+            .filter((r) => r.resolution === "clamped")
+            .map((r) => r.resolvedPath),
+          unresolved: outcome.unresolved.map((issue) => issue.path),
+        });
+        if (outcome.unresolved.length === 0) {
+          tracer.endSpan(validationSpan);
+          return {
+            data: outcome.data,
+            provenance: pruneProvenance(run.provenance, outcome.resolved),
+            issues: outcome.resolved,
+          };
+        }
+      }
+
+      tracer.endSpan(validationSpan);
 
       if (attempt < maxRepairAttempts) {
         tracer.addEvent(rootSpan, "repairAttempt", {
@@ -219,6 +276,23 @@ async function runCoercion(
   } finally {
     tracer.endSpan(rootSpan);
   }
+}
+
+/**
+ * Forget the provenance of a top-level field that was dropped: an annotation
+ * for a value the caller never sees would only mislead a review UI.
+ */
+function pruneProvenance(
+  provenance: Record<string, FieldProvenance>,
+  resolved: readonly ResolvedIssue[],
+): Record<string, FieldProvenance> {
+  const pruned = { ...provenance };
+  for (const issue of resolved) {
+    if (issue.resolution === "dropped" && /^[^.[]+$/.test(issue.resolvedPath)) {
+      delete pruned[issue.resolvedPath];
+    }
+  }
+  return pruned;
 }
 
 /** Drop nulls, which a partial result reports as absence. */
@@ -279,11 +353,11 @@ export async function coerceWithProvenance<T>(
   input: string,
   options: CoerceOptions,
 ): Promise<ProvenanceResult<T>> {
-  const { data, provenance } = await runCoercion(input, options, {
+  const { data, provenance, issues } = await runCoercion(input, options, {
     mode: "coerce",
     provenance: true,
   });
-  return { data: data as T, provenance };
+  return { data: data as T, provenance, issues };
 }
 
 /**
@@ -298,9 +372,9 @@ export async function partialCoerceWithProvenance<T>(
   input: string,
   options: CoerceOptions,
 ): Promise<ProvenanceResult<Partial<T>>> {
-  const { data, provenance } = await runCoercion(input, options, {
+  const { data, provenance, issues } = await runCoercion(input, options, {
     mode: "partialCoerce",
     provenance: true,
   });
-  return { data: stripNulls(data) as Partial<T>, provenance };
+  return { data: stripNulls(data) as Partial<T>, provenance, issues };
 }
