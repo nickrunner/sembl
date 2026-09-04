@@ -5,7 +5,7 @@ packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
 `@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
 lockstep, so one entry covers a release.
 
-## Unreleased
+## 0.3.0
 
 - `instructions` on every coercion, `sembl()` and the global config: caller
   hints for this extraction, rendered as their own section at the end of the
