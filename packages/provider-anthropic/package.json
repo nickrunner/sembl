@@ -1,6 +1,6 @@
 {
   "name": "@sembl/provider-anthropic",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Anthropic provider for SEMBL, using forced tool calls for structured output.",
   "keywords": [
     "llm",
@@ -22,13 +22,21 @@
     "directory": "packages/provider-anthropic"
   },
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",

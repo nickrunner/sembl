@@ -12,3 +12,7 @@ packages/examples/src/generated/
 # Local secrets
 .env
 .env.*
+
+# Example recordings and eval output
+packages/examples/recordings/
+**/.sembl-eval/

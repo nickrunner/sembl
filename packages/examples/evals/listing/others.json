@@ -1,0 +1,46 @@
+[
+  {
+    "name": "city-flat",
+    "input": {
+      "file": "../../data/city-flat.txt"
+    },
+    "expected": {
+      "name": "Bright one-bedroom flat in Lisbon's Alfama district",
+      "sleeps": 2,
+      "nightlyRate": 95,
+      "currency": "EUR",
+      "amenities": [
+        "wifi",
+        "kitchen",
+        "balcony"
+      ],
+      "propertyType": "flat",
+      "petsAllowed": false,
+      "address": {
+        "city": "Lisbon"
+      }
+    }
+  },
+  {
+    "name": "barn",
+    "input": {
+      "file": "../../data/barn.txt"
+    },
+    "expected": {
+      "name": "Converted stone barn on the edge of Bibury",
+      "sleeps": 10,
+      "nightlyRate": 480,
+      "currency": "GBP",
+      "amenities": [
+        "pool",
+        "ev-charger",
+        "wifi",
+        "kitchen"
+      ],
+      "propertyType": "barn",
+      "address": {
+        "city": "Bibury"
+      }
+    }
+  }
+]

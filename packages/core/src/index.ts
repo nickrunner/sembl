@@ -28,6 +28,10 @@ export type {
 } from "./schema/resolve-enum-sources.js";
 export { SchemaRegistry } from "./schema/registry.js";
 
+// Runtime schema definition (no decorators, no compile step)
+export { defineSchema, field, bundleOf } from "./schema/define.js";
+export type { DefinedSchema, FieldBuilder, Infer, InferFields } from "./schema/define.js";
+
 // Decorators
 export { Schema, Describe, Constrain, ValuesFrom } from "./decorators.js";
 
@@ -45,6 +49,7 @@ export type {
   ProviderConfig,
   ProviderRequest,
   ProviderResponse,
+  ProviderUsage,
 } from "./provider/types.js";
 
 // Coerce API
@@ -54,19 +59,49 @@ export {
   coerceWithProvenance,
   partialCoerceWithProvenance,
 } from "./coerce/coerce.js";
-export type { CoerceOptions } from "./coerce/coerce.js";
+export type { CoerceOptions, PreprocessSource } from "./coerce/coerce.js";
+
+// Batches
+export { coerceMany } from "./coerce/coerce-many.js";
+export type { CoerceManyOptions, CoerceManyResult, RetryOptions } from "./coerce/coerce-many.js";
+
+// Input budgeting
+export { budgetSources } from "./coerce/budget.js";
+export type { TruncatePolicy, TruncationRecord, BudgetResult } from "./coerce/budget.js";
+
+// Sources
+export {
+  toSources,
+  renderSources,
+  isSource,
+  isCoerceInput,
+  SOURCE_INSTRUCTIONS,
+} from "./coerce/sources.js";
+export type { Source, CoerceInput } from "./coerce/sources.js";
 
 // Provenance
 export {
   toProvenanceSchema,
   splitProvenance,
+  provenanceInstructions,
   PROVENANCE_INSTRUCTIONS,
 } from "./coerce/provenance.js";
 export type {
   FieldConfidence,
   FieldProvenance,
+  ProvenanceOptions,
   ProvenanceResult,
 } from "./coerce/provenance.js";
+
+// Invalid-field policy
+export { resolveIssues } from "./coerce/resolve-issues.js";
+export type {
+  InvalidFieldPolicy,
+  IssueResolution,
+  ResolvedIssue,
+  ResolveIssuesOptions,
+  ResolveIssuesResult,
+} from "./coerce/resolve-issues.js";
 
 // Repair
 export { buildRepairInput } from "./coerce/repair.js";

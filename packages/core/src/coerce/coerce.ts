@@ -6,16 +6,23 @@ import { CoerceError } from "../errors/coerce-error.js";
 import { EnumResolutionError } from "../errors/enum-resolution-error.js";
 import { runtimeSchemaToJsonSchema } from "../schema/json-schema.js";
 import { resolveEnumSources } from "../schema/resolve-enum-sources.js";
+import { bundleOf } from "../schema/define.js";
 import type { FieldValidationIssue } from "../errors/coerce-error.js";
 import { buildPrompt } from "./prompt-builder.js";
 import { buildRepairInput } from "./repair.js";
 import {
-  PROVENANCE_INSTRUCTIONS,
+  provenanceInstructions,
   splitProvenance,
   toProvenanceSchema,
 } from "./provenance.js";
+import { renderSources, toSources } from "./sources.js";
+import type { CoerceInput, Source } from "./sources.js";
+import { budgetSources } from "./budget.js";
+import type { TruncatePolicy } from "./budget.js";
 import type { FieldProvenance, ProvenanceResult } from "./provenance.js";
 import { validateStrict, validatePartial } from "./validator.js";
+import { resolveIssues } from "./resolve-issues.js";
+import type { InvalidFieldPolicy, ResolvedIssue } from "./resolve-issues.js";
 import { Tracer } from "../tracing/tracer.js";
 
 /**
@@ -43,7 +50,42 @@ export interface CoerceOptions {
    * usually the right setting.
    */
   maxRepairAttempts?: number;
+  /**
+   * What to do with a present field that fails validation: `"throw"` (the
+   * default), `"drop"` it, or `"clamp"` it to its bounds where that is
+   * meaningful and drop it otherwise. Required fields are never dropped.
+   *
+   * Issues the policy can absorb never trigger a repair round; the provenance
+   * variants report them in `issues`, and every run records them in a trace
+   * event.
+   */
+  onInvalidField?: InvalidFieldPolicy;
+  /**
+   * Cap on the total characters of source text sent to the model, applied
+   * after `preprocess`. Sources over the cap are cut per `truncate`, each
+   * losing a share proportional to its length, and the cut is marked in
+   * place with how much was omitted. Unbounded by default.
+   *
+   * Tokens vary by model and tokenizer; as a rule of thumb English prose runs
+   * about four characters per token.
+   */
+  maxInputChars?: number;
+  /** Which part of an over-budget source to cut. Default `"tail"`. */
+  truncate?: TruncatePolicy;
+  /**
+   * Transform each source before budgeting and rendering: strip HTML down to
+   * text, redact, normalise. Returning a string keeps the source's label.
+   */
+  preprocess?: PreprocessSource;
 }
+
+/** A hook applied to each source before it is budgeted and rendered. */
+export type PreprocessSource = (
+  source: Source,
+  index: number,
+) => Source | string | Promise<Source | string>;
+
+const INVALID_FIELD_POLICIES: readonly InvalidFieldPolicy[] = ["throw", "drop", "clamp"];
 
 /**
  * Resolve every dynamic enum source the schema reaches, under its own span.
@@ -101,12 +143,13 @@ async function resolveEnums(
 }
 
 /** What a pipeline run produced, before mode-specific post-processing. */
-interface CoercionRun {
+export interface CoercionRun {
   data: Record<string, unknown>;
   provenance: Record<string, FieldProvenance>;
+  issues: ResolvedIssue[];
 }
 
-interface RunOptions {
+export interface RunOptions {
   mode: "coerce" | "partialCoerce";
   /** Ask the model to annotate each field with where the value came from. */
   provenance: boolean;
@@ -121,23 +164,52 @@ interface RunOptions {
  * which validator decides whether the response is acceptable, and in whether
  * the request is wrapped for provenance.
  */
-async function runCoercion(
-  input: string,
+export async function runCoercion(
+  input: CoerceInput,
   options: CoerceOptions,
   { mode, provenance }: RunOptions,
 ): Promise<CoercionRun> {
-  const { provider, schema, bundle, enumResolver, traceSinks } = options;
+  const { provider, schema, enumResolver, traceSinks } = options;
+  // A schema made by defineSchema carries its own bundle; an explicit one
+  // still wins, for callers assembling a registry themselves.
+  const bundle = options.bundle ?? bundleOf(schema);
   const maxRepairAttempts = options.maxRepairAttempts ?? 0;
   if (!Number.isInteger(maxRepairAttempts) || maxRepairAttempts < 0) {
     throw new RangeError(
       `maxRepairAttempts must be a non-negative integer, got ${String(options.maxRepairAttempts)}`,
     );
   }
+  const onInvalidField = options.onInvalidField ?? "throw";
+  if (!INVALID_FIELD_POLICIES.includes(onInvalidField)) {
+    throw new RangeError(
+      `onInvalidField must be one of ${INVALID_FIELD_POLICIES.join(", ")}, got ${String(options.onInvalidField)}`,
+    );
+  }
+
+  if (
+    options.maxInputChars !== undefined &&
+    (!Number.isInteger(options.maxInputChars) || options.maxInputChars <= 0)
+  ) {
+    throw new RangeError(
+      `maxInputChars must be a positive integer, got ${String(options.maxInputChars)}`,
+    );
+  }
+
+  // Normalised up front so a bad input fails before any span is opened.
+  const rawSources = toSources(input);
 
   const tracer = new Tracer(traceSinks);
-  const rootSpan = tracer.startSpan(mode, { schemaId: schema.id, provenance });
+  const rootSpan = tracer.startSpan(mode, {
+    schemaId: schema.id,
+    provenance,
+    onInvalidField,
+    sourceCount: rawSources.length,
+  });
 
   try {
+    const sources = await prepareSources(rawSources, options, tracer, rootSpan);
+    const sourceLabels = sources.length > 1 ? sources.map((s) => s.label ?? "") : [];
+
     // Sources are resolved against the target schema even in a provenance run:
     // wrapping does not change which sources are reachable, and the wrapper's
     // extra nesting would only make the walk more expensive.
@@ -155,7 +227,7 @@ async function runCoercion(
     const promptSpan = tracer.startSpan("buildPrompt", {}, rootSpan);
     const basePrompt = buildPrompt(schema, bundle, { resolvedEnums });
     const systemPrompt = provenance
-      ? `${basePrompt}\n${PROVENANCE_INSTRUCTIONS}`
+      ? `${basePrompt}\n${provenanceInstructions({ sourceLabels })}`
       : basePrompt;
     tracer.addEvent(promptSpan, "promptBuilt", {
       promptLength: systemPrompt.length,
@@ -163,7 +235,7 @@ async function runCoercion(
     tracer.endSpan(promptSpan);
 
     const request = provenance
-      ? toProvenanceSchema(schema, bundle)
+      ? toProvenanceSchema(schema, bundle, { sourceLabels })
       : { schema, bundle };
 
     const schemaSpan = tracer.startSpan("buildJsonSchema", {}, rootSpan);
@@ -173,9 +245,14 @@ async function runCoercion(
     tracer.endSpan(schemaSpan);
 
     const validate = mode === "coerce" ? validateStrict : validatePartial;
-    let userInput = input;
+    const renderedInput = renderSources(sources);
+    tracer.addEvent(rootSpan, "inputRendered", {
+      sourceCount: sources.length,
+      inputLength: renderedInput.length,
+    });
+    let userInput = renderedInput;
     let issues: FieldValidationIssue[] = [];
-    let run: CoercionRun = { data: {}, provenance: {} };
+    let run: CoercionRun = { data: {}, provenance: {}, issues: [] };
 
     for (let attempt = 0; attempt <= maxRepairAttempts; attempt++) {
       const llmSpan = tracer.startSpan("llmCall", { attempt }, rootSpan);
@@ -191,17 +268,49 @@ async function runCoercion(
       tracer.endSpan(llmSpan);
 
       run = provenance
-        ? splitProvenance(response.data, schema)
-        : { data: response.data, provenance: {} };
+        ? { ...splitProvenance(response.data, schema), issues: [] }
+        : { data: response.data, provenance: {}, issues: [] };
 
       const validationSpan = tracer.startSpan("validate", { attempt }, rootSpan);
       issues = validate(run.data, schema, bundle, { resolvedEnums });
       tracer.addEvent(validationSpan, "validated", { issueCount: issues.length });
-      tracer.endSpan(validationSpan);
 
       if (issues.length === 0) {
+        tracer.endSpan(validationSpan);
         return run;
       }
+
+      // A policy that can absorb every issue makes the response acceptable
+      // as it stands, so it must not cost a repair round. Anything it cannot
+      // absorb — a required field, at any depth — goes back to the model.
+      if (onInvalidField !== "throw") {
+        const outcome = resolveIssues(run.data, issues, schema, {
+          bundle,
+          resolvedEnums,
+          mode,
+          policy: onInvalidField,
+        });
+        tracer.addEvent(validationSpan, "issuesResolved", {
+          policy: onInvalidField,
+          dropped: outcome.resolved
+            .filter((r) => r.resolution === "dropped")
+            .map((r) => r.resolvedPath),
+          clamped: outcome.resolved
+            .filter((r) => r.resolution === "clamped")
+            .map((r) => r.resolvedPath),
+          unresolved: outcome.unresolved.map((issue) => issue.path),
+        });
+        if (outcome.unresolved.length === 0) {
+          tracer.endSpan(validationSpan);
+          return {
+            data: outcome.data,
+            provenance: pruneProvenance(run.provenance, outcome.resolved),
+            issues: outcome.resolved,
+          };
+        }
+      }
+
+      tracer.endSpan(validationSpan);
 
       if (attempt < maxRepairAttempts) {
         tracer.addEvent(rootSpan, "repairAttempt", {
@@ -211,7 +320,7 @@ async function runCoercion(
         });
         // Feed back the unwrapped data: it is what the issues refer to, and
         // the schema still forces the wrapper shape on the way back.
-        userInput = buildRepairInput(input, run.data, issues);
+        userInput = buildRepairInput(renderedInput, run.data, issues);
       }
     }
 
@@ -221,8 +330,74 @@ async function runCoercion(
   }
 }
 
+/**
+ * Run the preprocess hook and the character budget over the sources, under
+ * their own span, recording what was cut so a truncation is never silent.
+ */
+async function prepareSources(
+  sources: readonly Source[],
+  options: CoerceOptions,
+  tracer: Tracer,
+  parent: TraceSpan,
+): Promise<Source[]> {
+  const { preprocess, maxInputChars, truncate } = options;
+  if (!preprocess && maxInputChars === undefined) {
+    return [...sources];
+  }
+
+  const span = tracer.startSpan("prepareInput", {}, parent);
+  try {
+    let prepared: Source[] = [...sources];
+
+    if (preprocess) {
+      prepared = await Promise.all(
+        prepared.map(async (source, index) => {
+          const result = await preprocess(source, index);
+          return typeof result === "string" ? { ...source, text: result } : result;
+        }),
+      );
+      tracer.addEvent(span, "preprocessed", {
+        lengths: prepared.map((s) => s.text.length),
+      });
+    }
+
+    if (maxInputChars !== undefined) {
+      const budgeted = budgetSources(prepared, maxInputChars, truncate);
+      prepared = budgeted.sources;
+      if (budgeted.truncated.length > 0) {
+        tracer.addEvent(span, "inputTruncated", {
+          maxInputChars,
+          policy: truncate ?? "tail",
+          sources: budgeted.truncated,
+        });
+      }
+    }
+
+    return prepared;
+  } finally {
+    tracer.endSpan(span);
+  }
+}
+
+/**
+ * Forget the provenance of a top-level field that was dropped: an annotation
+ * for a value the caller never sees would only mislead a review UI.
+ */
+function pruneProvenance(
+  provenance: Record<string, FieldProvenance>,
+  resolved: readonly ResolvedIssue[],
+): Record<string, FieldProvenance> {
+  const pruned = { ...provenance };
+  for (const issue of resolved) {
+    if (issue.resolution === "dropped" && /^[^.[]+$/.test(issue.resolvedPath)) {
+      delete pruned[issue.resolvedPath];
+    }
+  }
+  return pruned;
+}
+
 /** Drop nulls, which a partial result reports as absence. */
-function stripNulls(data: Record<string, unknown>): Record<string, unknown> {
+export function stripNulls(data: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     if (value !== null) {
@@ -239,7 +414,7 @@ function stripNulls(data: Record<string, unknown>): Record<string, unknown> {
  * Throws EnumResolutionError if a required field's enum source cannot be resolved.
  */
 export async function coerce<T>(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
 ): Promise<T> {
   const { data } = await runCoercion(input, options, {
@@ -257,7 +432,7 @@ export async function coerce<T>(
  * cannot be resolved.
  */
 export async function partialCoerce<T>(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
 ): Promise<Partial<T>> {
   const { data } = await runCoercion(input, options, {
@@ -276,14 +451,14 @@ export async function partialCoerce<T>(
  * than on a hot path.
  */
 export async function coerceWithProvenance<T>(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
 ): Promise<ProvenanceResult<T>> {
-  const { data, provenance } = await runCoercion(input, options, {
+  const { data, provenance, issues } = await runCoercion(input, options, {
     mode: "coerce",
     provenance: true,
   });
-  return { data: data as T, provenance };
+  return { data: data as T, provenance, issues };
 }
 
 /**
@@ -295,12 +470,12 @@ export async function coerceWithProvenance<T>(
  * trust them.
  */
 export async function partialCoerceWithProvenance<T>(
-  input: string,
+  input: CoerceInput,
   options: CoerceOptions,
 ): Promise<ProvenanceResult<Partial<T>>> {
-  const { data, provenance } = await runCoercion(input, options, {
+  const { data, provenance, issues } = await runCoercion(input, options, {
     mode: "partialCoerce",
     provenance: true,
   });
-  return { data: stripNulls(data) as Partial<T>, provenance };
+  return { data: stripNulls(data) as Partial<T>, provenance, issues };
 }

@@ -27,7 +27,11 @@ export class OpenAIProvider implements Provider {
   }
 
   async complete(request: ProviderRequest): Promise<ProviderResponse> {
-    const responseFormat = toResponseFormat(request.schema, request.bundle);
+    const responseFormat = toResponseFormat(
+      request.schema,
+      request.bundle,
+      request.resolvedEnums,
+    );
 
     let completion;
     try {

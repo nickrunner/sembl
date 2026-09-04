@@ -1,0 +1,5 @@
+[
+  { "name": "ada", "input": "Ada, 36", "expected": { "name": "Ada", "age": 36 } },
+  { "name": "grace", "input": "Grace, 85", "expected": { "name": "Grace", "age": 85 } },
+  { "name": "linus", "input": "Linus", "expected": { "name": "Linus", "age": 55 } }
+]

@@ -2,6 +2,8 @@ import type { RuntimeSchema } from "../schema/types.js";
 import type { SemblCallConfig, ResolvedConfig } from "./config.js";
 import { resolveConfig } from "./config.js";
 import { coerce, partialCoerce } from "./coerce.js";
+import { isCoerceInput } from "./sources.js";
+import type { CoerceInput } from "./sources.js";
 
 /**
  * Serialize a value to a string for use as LLM input.
@@ -31,7 +33,19 @@ export class Coercible<T> implements PromiseLike<T> {
   constructor(
     private readonly _promise: Promise<T>,
     private readonly _config: ResolvedConfig,
+    /**
+     * Whether the promise holds the caller's original input rather than a
+     * coerced result. Only the first link does: it passes labelled sources
+     * through untouched, whereas every later link serializes the previous
+     * result — a result that merely looks like a source is still a result.
+     */
+    private readonly _holdsInput = false,
   ) {}
+
+  /** What the next link should send as its input. */
+  private _inputFrom(value: T): CoerceInput {
+    return this._holdsInput ? (value as unknown as CoerceInput) : serialize(value);
+  }
 
   /** The per-call options every link in the chain shares. */
   private _optionsFor(schema: RuntimeSchema) {
@@ -42,6 +56,10 @@ export class Coercible<T> implements PromiseLike<T> {
       enumResolver: this._config.enumResolver,
       traceSinks: this._config.traceSinks,
       maxRepairAttempts: this._config.maxRepairAttempts,
+      onInvalidField: this._config.onInvalidField,
+      maxInputChars: this._config.maxInputChars,
+      truncate: this._config.truncate,
+      preprocess: this._config.preprocess,
     };
   }
 
@@ -51,7 +69,7 @@ export class Coercible<T> implements PromiseLike<T> {
    */
   coerceTo<U>(schema: RuntimeSchema): Coercible<U> {
     const next = this._promise.then((value) =>
-      coerce<U>(serialize(value), this._optionsFor(schema)),
+      coerce<U>(this._inputFrom(value), this._optionsFor(schema)),
     );
     return new Coercible<U>(next, this._config);
   }
@@ -62,7 +80,7 @@ export class Coercible<T> implements PromiseLike<T> {
    */
   partialCoerceTo<U>(schema: RuntimeSchema): Coercible<Partial<U>> {
     const next = this._promise.then((value) =>
-      partialCoerce<U>(serialize(value), this._optionsFor(schema)),
+      partialCoerce<U>(this._inputFrom(value), this._optionsFor(schema)),
     );
     return new Coercible<Partial<U>>(next, this._config);
   }
@@ -100,10 +118,10 @@ export class Coercible<T> implements PromiseLike<T> {
  * ```
  */
 export function sembl(
-  input: string | Record<string, unknown>,
+  input: CoerceInput | Record<string, unknown>,
   config?: SemblCallConfig,
-): Coercible<string> {
+): Coercible<CoerceInput> {
   const resolved = resolveConfig(config);
-  const serialized = serialize(input);
-  return new Coercible<string>(Promise.resolve(serialized), resolved);
+  const initial: CoerceInput = isCoerceInput(input) ? input : serialize(input);
+  return new Coercible<CoerceInput>(Promise.resolve(initial), resolved, true);
 }

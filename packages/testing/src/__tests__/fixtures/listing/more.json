@@ -1,0 +1,4 @@
+[
+  { "name": "flat", "input": "City Flat. Sleeps 2. Wifi.", "expected": { "name": "City Flat", "sleeps": 2, "amenities": ["wifi"] } },
+  { "input": [{ "label": "A", "text": "Barn. Sleeps 10." }, { "label": "B", "text": "The barn has a pool." }], "expected": { "name": "Barn", "sleeps": 10, "amenities": ["pool"] } }
+]

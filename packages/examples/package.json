@@ -6,12 +6,18 @@
   "scripts": {
     "build": "pnpm run extract && tsup",
     "extract": "node ../compiler/dist/cli/index.js extract --input src/schemas --output src/generated",
-    "demo": "node dist/demo.js"
+    "demo": "node dist/run.js",
+    "eval": "node ../compiler/dist/cli/index.js eval --config dist/support/eval-config.js --fixtures evals/listing --mode partialCoerce --replay recordings"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.65.0",
     "@sembl/compiler": "workspace:*",
     "@sembl/core": "workspace:*",
-    "@sembl/provider-openai": "workspace:*"
+    "@sembl/provider-anthropic": "workspace:*",
+    "@sembl/provider-openai": "workspace:*",
+    "@sembl/source-html": "workspace:*",
+    "@sembl/testing": "workspace:*",
+    "openai": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

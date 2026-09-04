@@ -1,0 +1,13 @@
+{
+  "input": { "file": "../../data/sea-cabin.txt", "label": "Listing" },
+  "expected": {
+    "name": "Sea Cabin",
+    "sleeps": 6,
+    "nightlyRate": 250,
+    "currency": "USD",
+    "amenities": ["sauna", "hot-tub", "kitchen", "wifi", "parking"],
+    "propertyType": "cabin",
+    "petsAllowed": true,
+    "address": { "street": "41 Driftwood Lane", "city": "Yachats", "zip": "97498" }
+  }
+}

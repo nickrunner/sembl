@@ -29,11 +29,11 @@ pnpm -C packages/examples extract
 
 ## Architecture
 
-**Monorepo** using pnpm workspaces with four packages:
+**Monorepo** using pnpm workspaces with these packages:
 
 ### @sembl/core
 Runtime library. Key areas:
-- **`schema/`** — `RuntimeSchema`, `FieldDescriptor`, `FieldType` definitions; JSON Schema conversion; `SchemaRegistry` for runtime lookup
+- **`schema/`** — `RuntimeSchema`, `FieldDescriptor`, `FieldType` definitions; JSON Schema conversion; `SchemaRegistry` for runtime lookup; `define.ts` builds schemas at runtime (`defineSchema`, `field`, `Infer`) with output identical to the compiler's
 - **`coerce/`** — `coerce<T>()` and `partialCoerce<T>()` send schema + user input to an LLM provider and validate the response. `Coercible<T>` provides a fluent chainable API (via `sembl()`) that implements `PromiseLike`
 - **`provider/`** — `Provider` interface that LLM implementations must satisfy
 - **`decorators.ts`** — `@Schema` and `@Describe` are no-ops at runtime; they exist for compile-time extraction only
@@ -44,13 +44,19 @@ Runtime library. Key areas:
 Build-time tool that reads TypeScript source files with ts-morph, finds `@Schema`/`@Describe` decorators, and emits `RuntimeSchema` constants as `.schema.ts` files plus a bundle index.
 - **`extractor/`** — AST pipeline: `ast-extractor` → `class-visitor` → `decorator-parser` → `type-resolver`
 - **`generator/`** — `schema-emitter` outputs generated files
-- **`cli/`** — Commander.js CLI exposed as the `sembl` binary
+- **`cli/`** — Commander.js CLI exposed as the `sembl` binary: `extract` (schemas from decorated classes) and `eval` (runs `@sembl/testing` fixtures against a config module)
 
 ### @sembl/provider-openai
 OpenAI provider implementing the `Provider` interface. Converts `RuntimeSchema` to OpenAI's strict JSON Schema format and uses structured outputs via `chat.completions`.
 
+### @sembl/source-html
+Zero-dependency HTML → text for extraction: title and meta tags, then JSON-LD, then body text, so head-keeping truncation preserves the structured parts.
+
+### @sembl/testing
+Node-only test support: `RecordingProvider` / `ReplayProvider` (request/response pairs on disk, keyed by a hash of what reached the model) and the eval harness behind `sembl eval`.
+
 ### @sembl/examples (private)
-Demo schemas (`Address`, `Profile`, `PromptIntent`) and a `demo.ts` showing fluent API chaining.
+Twelve runnable examples under `src/examples/`, one per feature, over fictional listings in `data/`. `src/support/provider.ts` picks Anthropic or OpenAI from the env and wraps it in `replayOrRecord` so runs are recorded under `recordings/` (gitignored). `pnpm --filter @sembl/examples demo [n]`.
 
 ## Key Patterns
 
