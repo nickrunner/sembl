@@ -62,6 +62,8 @@ export class Coercible<T> implements PromiseLike<T> {
       maxInputChars: this._config.maxInputChars,
       truncate: this._config.truncate,
       preprocess: this._config.preprocess,
+      maxImages: this._config.maxImages,
+      maxDocuments: this._config.maxDocuments,
     };
   }
 

@@ -1,5 +1,6 @@
 import type { RuntimeSchema, SchemaBundle } from "../schema/types.js";
 import type { ResolvedEnums } from "../schema/enum-source.js";
+import type { ContentBlock } from "../coerce/sources.js";
 
 /**
  * Configuration for a provider.
@@ -30,8 +31,20 @@ export type ProviderTurn =
 export interface ProviderRequest {
   /** System prompt with semantic context */
   systemPrompt: string;
-  /** User input to coerce — the first user turn of the conversation. */
+  /**
+   * User input to coerce — the first user turn of the conversation, as
+   * text. When `content` is present this is the same turn with each image
+   * or document reduced to a placeholder tag, kept for logging, recording
+   * and providers that read only text.
+   */
   userInput: string;
+  /**
+   * The first user turn as ordered blocks, present only when at least one
+   * source is an image or a document. A provider that declares
+   * `supportsImages` / `supportsDocuments` renders these instead of
+   * `userInput`; core never sends a binary block to one that does not.
+   */
+  content?: ContentBlock[];
   /**
    * Turns after `userInput`, in order, for a repair or an empty-result
    * retry: the rejected output as an assistant turn, then the correction as
@@ -114,4 +127,12 @@ export interface Provider {
    * instead, which every provider can handle.
    */
   readonly supportsHistory?: boolean;
+  /**
+   * Whether `complete` renders image blocks in `request.content`. Leave
+   * unset (false) and core rejects an image source before calling, rather
+   * than sending a placeholder the model cannot see through.
+   */
+  readonly supportsImages?: boolean;
+  /** Whether `complete` renders document (PDF) blocks in `request.content`. */
+  readonly supportsDocuments?: boolean;
 }

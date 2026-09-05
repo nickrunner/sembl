@@ -27,6 +27,11 @@ SemblConfig.configure({
 const draft = await sembl(listingHtml).partialCoerceTo(StayDetailsSchema);
 ```
 
+The provider declares `supportsImages` and `supportsDocuments`: an image
+source becomes an `image` block and a PDF a `document` block in the user
+message, inline as base64 or by URL for the API to fetch, each between the
+same `<source>` tags that frame text.
+
 ### Bring your own client
 
 When the host app already resolves credentials its own way — Secret Manager,

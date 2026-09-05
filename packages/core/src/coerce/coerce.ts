@@ -15,9 +15,9 @@ import {
   splitProvenance,
   toProvenanceSchema,
 } from "./provenance.js";
-import { renderSources, toSources } from "./sources.js";
-import type { CoerceInput, Source } from "./sources.js";
-import { budgetSources } from "./budget.js";
+import { isTextSource, renderContent, renderSources, sourceKind, sourceKinds, toSources } from "./sources.js";
+import type { CoerceInput, ContentBlock, Source, SourceKind, TextSource } from "./sources.js";
+import { budgetSources, capBinarySources } from "./budget.js";
 import type { TruncatePolicy } from "./budget.js";
 import type { FieldProvenance, ProvenanceResult } from "./provenance.js";
 import { validateStrict, validatePartial } from "./validator.js";
@@ -100,15 +100,28 @@ export interface CoerceOptions {
   /** Which part of an over-budget source to cut. Default `"tail"`. */
   truncate?: TruncatePolicy;
   /**
-   * Transform each source before budgeting and rendering: strip HTML down to
-   * text, redact, normalise. Returning a string keeps the source's label.
+   * Transform each text source before budgeting and rendering: strip HTML
+   * down to text, redact, normalise. Returning a string keeps the source's
+   * label. Image and document sources pass through untouched.
    */
   preprocess?: PreprocessSource;
+  /**
+   * Most image sources to send, counted after `preprocess`. Extras are
+   * dropped from the end of the input and recorded in a `sourcesDropped`
+   * trace event, so the first images listed are the ones that survive.
+   * Unbounded by default.
+   */
+  maxImages?: number;
+  /** Most document sources to send; otherwise as `maxImages`. */
+  maxDocuments?: number;
 }
 
-/** A hook applied to each source before it is budgeted and rendered. */
+/**
+ * A hook applied to each text source before it is budgeted and rendered.
+ * Binary sources are not offered to it: an image has no text to transform.
+ */
 export type PreprocessSource = (
-  source: Source,
+  source: TextSource,
   index: number,
 ) => Source | string | Promise<Source | string>;
 
@@ -272,7 +285,33 @@ function checkOptions(options: CoerceOptions): {
       `maxInputChars must be a positive integer, got ${String(options.maxInputChars)}`,
     );
   }
+  for (const name of ["maxImages", "maxDocuments"] as const) {
+    const value = options[name];
+    if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+      throw new RangeError(`${name} must be a non-negative integer, got ${String(value)}`);
+    }
+  }
   return { maxRepairAttempts, retryOnEmpty, onInvalidField, instructions };
+}
+
+/**
+ * Refuse a binary source the provider has not declared it can render. A
+ * placeholder tag is all a text-only provider would see, and a confident
+ * extraction from a picture the model never saw is worse than an error.
+ */
+function checkProviderSupport(provider: Provider, sources: readonly Source[]): void {
+  for (const source of sources) {
+    const kind = sourceKind(source);
+    if (kind === "text") continue;
+    const supported = kind === "image" ? provider.supportsImages : provider.supportsDocuments;
+    if (supported === true) continue;
+    const flag = kind === "image" ? "supportsImages" : "supportsDocuments";
+    const name = source.label !== undefined ? `Source "${source.label}"` : "The source";
+    throw new RangeError(
+      `${name} is ${kind === "image" ? "an image" : "a document"}, but the provider does not declare ${flag}. ` +
+        `Use a provider that accepts ${kind}s, or turn the ${kind} into text before coercing.`,
+    );
+  }
 }
 
 /**
@@ -284,6 +323,7 @@ async function prepareRequest(
   { mode, provenance }: Pick<RunOptions, "mode" | "provenance">,
   instructions: string[],
   sourceLabels: readonly string[],
+  kinds: readonly SourceKind[],
   tracer: Tracer,
   rootSpan: TraceSpan,
 ): Promise<PreparedRequest> {
@@ -299,8 +339,8 @@ async function prepareRequest(
   // are what the model needs. The wrapper shape is carried by the JSON
   // Schema, and how to judge confidence by the extra instructions.
   const promptSpan = tracer.startSpan("buildPrompt", {}, rootSpan);
-  const basePrompt = buildPrompt(schema, bundle, { resolvedEnums, instructions });
-  const provenanceOptions = { sourceLabels, fields: options.provenanceFields };
+  const basePrompt = buildPrompt(schema, bundle, { resolvedEnums, instructions, sourceKinds: kinds });
+  const provenanceOptions = { sourceLabels, fields: options.provenanceFields, sourceKinds: kinds };
   const systemPrompt = provenance
     ? `${basePrompt}\n${provenanceInstructions(provenanceOptions)}`
     : basePrompt;
@@ -369,12 +409,18 @@ export async function runCoercion(
 
   try {
     const sources = await prepareSources(rawSources, options, tracer, rootSpan);
+    const kinds = sourceKinds(sources);
+    // Checked after preparation, since a hook or a cap may have removed the
+    // binary sources, and before the enum resolver runs, so nothing is
+    // fetched for a call that cannot be made.
+    checkProviderSupport(provider, sources);
     const sourceLabels = sources.length > 1 ? sources.map((s) => s.label ?? "") : [];
     const prepared = await prepareRequest(
       options,
       { mode, provenance },
       instructions,
       sourceLabels,
+      kinds,
       tracer,
       rootSpan,
     );
@@ -382,18 +428,30 @@ export async function runCoercion(
 
     const validate = mode === "coerce" ? validateStrict : validatePartial;
     const renderedInput = renderSources(sources);
-    const hasInput = sources.some((s) => s.text.trim().length > 0);
+    const binary = kinds.some((kind) => kind !== "text");
+    // Blocks go only when there is something in them a string cannot carry,
+    // so a text-only request looks exactly as it did before images existed.
+    const renderedContent = binary ? renderContent(sources) : undefined;
+    const hasInput = sources.some((s) => !isTextSource(s) || s.text.trim().length > 0);
     tracer.addEvent(rootSpan, "inputRendered", {
       sourceCount: sources.length,
       inputLength: renderedInput.length,
+      ...(binary
+        ? {
+            imageCount: sources.filter((s) => sourceKind(s) === "image").length,
+            documentCount: sources.filter((s) => sourceKind(s) === "document").length,
+          }
+        : {}),
     });
     let userInput = renderedInput;
+    let content = renderedContent;
     let issues: FieldValidationIssue[] = [];
     let run: CoercionRun = { data: {}, provenance: {}, issues: [], usage };
     let emptyRetries = 0;
     // A provider that renders turns gets the conversation as it happened:
     // the model's own output as its own turn, the correction as ours. One
-    // that does not gets the same content folded into the user input.
+    // that does not gets the same content folded into the user input — and,
+    // when the input is blocks, the same text appended as the last block.
     const multiTurn = provider.supportsHistory === true;
     const history: ProviderTurn[] = [];
     const followUp = (rejected: Record<string, unknown>, text: string, folded: string) => {
@@ -401,6 +459,9 @@ export async function runCoercion(
         history.push({ role: "assistant", data: rejected }, { role: "user", text });
       } else {
         userInput = folded;
+        if (renderedContent) {
+          content = appendText(renderedContent, folded.slice(renderedInput.length));
+        }
       }
     };
 
@@ -409,6 +470,7 @@ export async function runCoercion(
       const response = await provider.complete({
         systemPrompt,
         userInput,
+        ...(content ? { content } : {}),
         ...(history.length > 0 ? { history: [...history] } : {}),
         jsonSchema,
         schema: prepared.schema,
@@ -500,8 +562,21 @@ export async function runCoercion(
 }
 
 /**
- * Run the preprocess hook and the character budget over the sources, under
- * their own span, recording what was cut so a truncation is never silent.
+ * Add text to the end of a block list, merging into a trailing text block
+ * so the framing and the note read as one message.
+ */
+function appendText(blocks: readonly ContentBlock[], text: string): ContentBlock[] {
+  const last = blocks[blocks.length - 1];
+  if (last !== undefined && last.type === "text") {
+    return [...blocks.slice(0, -1), { type: "text", text: `${last.text}${text}` }];
+  }
+  return [...blocks, { type: "text", text }];
+}
+
+/**
+ * Run the preprocess hook, the character budget and the binary caps over
+ * the sources, under their own span, recording what was cut or dropped so
+ * neither is ever silent.
  */
 async function prepareSources(
   sources: readonly Source[],
@@ -509,9 +584,10 @@ async function prepareSources(
   tracer: Tracer,
   parent: TraceSpan,
 ): Promise<Source[]> {
-  const { preprocess, maxInputChars, truncate } = options;
-  const anyCapped = sources.some((s) => s.maxChars !== undefined);
-  if (!preprocess && maxInputChars === undefined && !anyCapped) {
+  const { preprocess, maxInputChars, truncate, maxImages, maxDocuments } = options;
+  const anyCapped = sources.some((s) => isTextSource(s) && s.maxChars !== undefined);
+  const anyLimit = maxImages !== undefined || maxDocuments !== undefined;
+  if (!preprocess && maxInputChars === undefined && !anyCapped && !anyLimit) {
     return [...sources];
   }
 
@@ -522,16 +598,29 @@ async function prepareSources(
     if (preprocess) {
       prepared = await Promise.all(
         prepared.map(async (source, index) => {
+          if (!isTextSource(source)) return source;
           const result = await preprocess(source, index);
           return typeof result === "string" ? { ...source, text: result } : result;
         }),
       );
       tracer.addEvent(span, "preprocessed", {
-        lengths: prepared.map((s) => s.text.length),
+        lengths: prepared.map((s) => (isTextSource(s) ? s.text.length : 0)),
       });
     }
 
-    if (maxInputChars !== undefined || prepared.some((s) => s.maxChars !== undefined)) {
+    if (anyLimit) {
+      const capped = capBinarySources(prepared, { maxImages, maxDocuments });
+      prepared = capped.sources;
+      if (capped.dropped.length > 0) {
+        tracer.addEvent(span, "sourcesDropped", {
+          ...(maxImages !== undefined ? { maxImages } : {}),
+          ...(maxDocuments !== undefined ? { maxDocuments } : {}),
+          sources: capped.dropped,
+        });
+      }
+    }
+
+    if (maxInputChars !== undefined || prepared.some((s) => isTextSource(s) && s.maxChars !== undefined)) {
       const budgeted = budgetSources(prepared, maxInputChars, truncate);
       prepared = budgeted.sources;
       if (budgeted.truncated.length > 0) {
@@ -655,6 +744,13 @@ export interface PrimedPrefix {
 export interface PrimeCacheOptions extends CoerceOptions {
   mode?: "coerce" | "partialCoerce";
   provenance?: boolean;
+  /**
+   * The kinds of source the batch's items will carry. An input with an
+   * image or a document gets a few extra lines of system prompt, which is
+   * a different prefix; name the kinds here so the warm-up writes that one.
+   * Text only by default.
+   */
+  sourceKinds?: readonly SourceKind[];
 }
 
 const PRIME_INPUT =
@@ -675,13 +771,13 @@ const PRIME_INPUT =
  * a different prefix and warms nothing.
  */
 export async function primeCache(options: PrimeCacheOptions): Promise<PrimedPrefix> {
-  const { mode = "coerce", provenance = false, ...coerceOptions } = options;
+  const { mode = "coerce", provenance = false, sourceKinds: kinds = [], ...coerceOptions } = options;
   const { instructions } = checkOptions(coerceOptions);
   const tracer = new Tracer(coerceOptions.traceSinks);
   const rootSpan = tracer.startSpan("primeCache", { schemaId: coerceOptions.schema.id, mode, provenance });
   const usage = emptyUsage();
   try {
-    const prepared = await prepareRequest(coerceOptions, { mode, provenance }, instructions, [], tracer, rootSpan);
+    const prepared = await prepareRequest(coerceOptions, { mode, provenance }, instructions, [], kinds, tracer, rootSpan);
     const llmSpan = tracer.startSpan("llmCall", { attempt: 0, warmup: true }, rootSpan);
     const response = await coerceOptions.provider.complete({
       systemPrompt: prepared.systemPrompt,
