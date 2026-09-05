@@ -78,6 +78,9 @@ importers:
       '@sembl/provider-openai':
         specifier: workspace:*
         version: link:../provider-openai
+      '@sembl/source-audio':
+        specifier: workspace:*
+        version: link:../source-audio
       '@sembl/source-email':
         specifier: workspace:*
         version: link:../source-email
@@ -132,6 +135,25 @@ importers:
       openai:
         specifier: ^4.0.0
         version: 4.104.0
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
+  packages/source-audio:
+    dependencies:
+      '@sembl/core':
+        specifier: workspace:*
+        version: link:../core
+      openai:
+        specifier: ^4.104.0
+        version: 4.104.0
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)

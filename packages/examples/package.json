@@ -15,6 +15,7 @@
     "@sembl/core": "workspace:*",
     "@sembl/provider-anthropic": "workspace:*",
     "@sembl/provider-openai": "workspace:*",
+    "@sembl/source-audio": "workspace:*",
     "@sembl/source-email": "workspace:*",
     "@sembl/source-html": "workspace:*",
     "@sembl/source-pdf": "workspace:*",
