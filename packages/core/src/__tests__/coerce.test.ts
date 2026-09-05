@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   coerce,
   partialCoerce,
+  coerceDetailed,
+  partialCoerceDetailed,
   coerceWithProvenance,
   partialCoerceWithProvenance,
 } from "../coerce/coerce.js";
@@ -533,7 +535,7 @@ describe("sources", () => {
     );
     expect(requests[0].userInput).toContain('<source label="Email">');
     expect(requests[0].userInput).toContain('<source label="Form">');
-    expect(requests[0].systemPrompt).toContain("Set `source`");
+    expect(requests[0].systemPrompt).toContain("set `source`");
     const annotation = requests[0].bundle?.schemas["Person__name__Annotated"];
     expect(annotation?.fields.find((f) => f.name === "source")?.type).toEqual({
       kind: "enum",
@@ -549,7 +551,7 @@ describe("sources", () => {
     await coerceWithProvenance("From Ada", { provider, schema: nameSchema });
     const annotation = requests[0].bundle?.schemas["Person__name__Annotated"];
     expect(annotation?.fields.map((f) => f.name)).toEqual(["value", "confidence", "evidence"]);
-    expect(requests[0].systemPrompt).not.toContain("Set `source`");
+    expect(requests[0].systemPrompt).not.toContain("set `source`");
   });
 
   it("rejects an empty source list before calling the provider", async () => {
@@ -715,5 +717,115 @@ describe("instructions", () => {
       coerce("x", { provider, schema: priceSchema, instructions: 42 as unknown as string }),
     ).rejects.toThrow(RangeError);
     expect(calls).toBe(0);
+  });
+});
+
+describe("detailed results and usage", () => {
+  const nameSchema: RuntimeSchema = {
+    id: "Person",
+    description: "A person.",
+    fields: [
+      { name: "name", description: "Name", type: { kind: "string" }, required: true },
+      { name: "age", description: "Age", type: { kind: "number" }, required: false, constraints: { maximum: 100 } },
+    ],
+  };
+  const usage = { promptTokens: 100, completionTokens: 10, totalTokens: 110, cacheReadTokens: 80 };
+
+  it("sums usage over every call, repairs included", async () => {
+    let calls = 0;
+    const provider: Provider = {
+      async complete() {
+        calls += 1;
+        return { data: { name: calls === 1 ? 5 : "Ada", age: 200 }, usage };
+      },
+    };
+    const result = await coerceDetailed<{ name: string; age?: number }>("x", {
+      provider,
+      schema: nameSchema,
+      maxRepairAttempts: 1,
+      onInvalidField: "clamp",
+    });
+    expect(result.data).toEqual({ name: "Ada", age: 100 });
+    expect(result.issues).toMatchObject([{ path: "age", resolution: "clamped" }]);
+    expect(result.usage).toEqual({
+      calls: 2, promptTokens: 200, completionTokens: 20, totalTokens: 220, cacheReadTokens: 160, cacheWriteTokens: 0,
+    });
+  });
+
+  it("strips nulls on the partial detailed path and reports usage on provenance results", async () => {
+    const provider: Provider = {
+      async complete() {
+        return { data: { name: "Ada", age: null }, usage };
+      },
+    };
+    const partial = await partialCoerceDetailed<{ name: string; age?: number }>("x", { provider, schema: nameSchema });
+    expect(partial.data).toEqual({ name: "Ada" });
+    expect(partial.usage.calls).toBe(1);
+
+    const annotated: Provider = {
+      async complete() {
+        return { data: { name: { value: "Ada", confidence: "high" } }, usage };
+      },
+    };
+    const withProvenance = await coerceWithProvenance<{ name: string }>("x", { provider: annotated, schema: nameSchema });
+    expect(withProvenance.usage.promptTokens).toBe(100);
+  });
+});
+
+describe("retryOnEmpty", () => {
+  const nameSchema: RuntimeSchema = {
+    id: "Person",
+    description: "A person.",
+    fields: [{ name: "name", description: "Name", type: { kind: "string" }, required: false }],
+  };
+
+  it("asks again with a note when a non-empty input yields nothing", async () => {
+    const inputs: string[] = [];
+    const provider: Provider = {
+      async complete(request) {
+        inputs.push(request.userInput);
+        return { data: inputs.length === 1 ? {} : { name: "Ada" } };
+      },
+    };
+    const result = await partialCoerce<{ name: string }>("Ada was here", {
+      provider,
+      schema: nameSchema,
+      retryOnEmpty: 1,
+    });
+    expect(result).toEqual({ name: "Ada" });
+    expect(inputs).toHaveLength(2);
+    expect(inputs[1]).toContain("returned no fields");
+    expect(inputs[1].startsWith("<source>\nAda was here\n</source>")).toBe(true);
+  });
+
+  it("gives up after the budget and returns the empty result", async () => {
+    let calls = 0;
+    const provider: Provider = {
+      async complete() {
+        calls += 1;
+        return { data: { name: null } };
+      },
+    };
+    const result = await partialCoerce("Ada", { provider, schema: nameSchema, retryOnEmpty: 2 });
+    expect(result).toEqual({});
+    expect(calls).toBe(3);
+  });
+
+  it("does not retry for an input that is itself empty, and is off by default", async () => {
+    let calls = 0;
+    const provider: Provider = {
+      async complete() {
+        calls += 1;
+        return { data: {} };
+      },
+    };
+    await partialCoerce("   ", { provider, schema: nameSchema, retryOnEmpty: 3 });
+    await partialCoerce("Ada", { provider, schema: nameSchema });
+    expect(calls).toBe(2);
+  });
+
+  it("rejects a bad budget", async () => {
+    const provider: Provider = { async complete() { return { data: {} }; } };
+    await expect(partialCoerce("x", { provider, schema: nameSchema, retryOnEmpty: -1 })).rejects.toThrow(RangeError);
   });
 });

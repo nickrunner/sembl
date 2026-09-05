@@ -59,13 +59,33 @@ await coerce(input, { provider, schema, bundle });
 | `client`      | —                    | Pre-built SDK client. Takes precedence over `apiKey`/`baseURL`. |
 | `apiKey`      | `ANTHROPIC_API_KEY`  | Falls back to the SDK's own env lookup.                       |
 | `baseURL`     | Anthropic production | Ignored when `client` is set.                                 |
-| `temperature` | `0`                  |                                                               |
+| `temperature` | not sent             | Sent only when set. Newer models reject sampling parameters.  |
+| `thinking`    | see note             | `{ type: "disabled" }` for Claude 5 models; unset otherwise.  |
+| `requestOverrides` | —               | Merged into the request body last. For the next model-specific parameter. |
 | `maxTokens`   | `4096`               | Anthropic requires an explicit output budget.                 |
 | `toolName`    | `extract_<SchemaId>` | Sanitized to Anthropic's `^[a-zA-Z0-9_-]{1,64}$`.             |
 | `cachePrompt` | `false`              | Cache the stable prefix — tool definition plus system prompt. |
 | `cacheTtl`    | `"5m"`               | `"5m"` or `"1h"`. Ignored unless `cachePrompt` is set.        |
 | `maxRetries`  | `2`                  | Retries per call, handled by the SDK.                         |
 | `timeoutMs`   | `120000`             | Per-attempt timeout.                                          |
+
+## Thinking and other model-specific parameters
+
+Claude 5 models enable adaptive thinking by default, and the API rejects a
+forced tool call while thinking is on. The provider therefore sends
+`thinking: { type: "disabled" }` for any model id that names a Claude 5 model
+(`claude-sonnet-5`, `claude-opus-5`, `claude-fable-5-1`, …) and nothing for
+older models, which reject the parameter. Set `thinking` yourself to override
+either way. When the next parameter of that kind appears, `requestOverrides`
+lets you send it without waiting for a release:
+
+```ts
+new AnthropicProvider({
+  model: "claude-sonnet-5",
+  apiKey,
+  requestOverrides: { metadata: { user_id: tenantId } },
+});
+```
 
 ## Prompt caching
 

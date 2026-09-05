@@ -39,7 +39,10 @@ inputs are pages, and `@sembl/testing` as a dev dependency for record/replay
 and evals. Skip `@sembl/compiler` if you define schemas at runtime.
 
 Every package ships ESM and CommonJS with matching types, so `import` and
-`require` both work. Only the `sembl` CLI binary is ESM-only.
+`require` both work. Only the `sembl` CLI binary is ESM-only. The exports
+map is verified in CI for `node16`, `bundler` and the legacy `node10`
+resolution; prefer `moduleResolution: "node16"` or `"bundler"`, since
+TypeScript 6 drops `node10`.
 
 ## Quickstart
 
@@ -215,6 +218,21 @@ import { coerce, partialCoerce } from "@sembl/core";
 const address = await coerce<Address>(input, { provider, schema, bundle });
 ```
 
+When a pipeline accounts for spend or shows what was dropped but never needs
+per-field confidence, `coerceDetailed` and `partialCoerceDetailed` return the
+data together with the absorbed `issues` and the `usage` of every call the
+coercion made — first attempt, repairs and retries summed — without the cost
+of provenance:
+
+```ts
+const { data, issues, usage } = await partialCoerceDetailed<Listing>(page, {
+  provider,
+  schema,
+  onInvalidField: "drop",
+});
+// usage → { calls: 1, promptTokens: 8123, completionTokens: 412, cacheReadTokens: 7800, … }
+```
+
 ## Hints the schema can't carry
 
 Descriptions say what a field *means*; some guidance is about this call, not
@@ -267,6 +285,16 @@ path is untouched. It's off by default because it also multiplies worst-case
 latency — but for extraction from scraped HTML or third-party payloads, `1` is
 usually the right setting.
 
+### Empty results
+
+A model occasionally answers with no fields at all for a page it could
+read. That passes a partial coercion, so it is handled on its own budget:
+`retryOnEmpty: 1` sends the input again with a note that the previous
+attempt returned nothing and that the sources do state values. The prompt
+also now says that a stated value is never left out because it looks like a
+default — `1`, `0`, `false` and an empty list are values when the input says
+so.
+
 ## More than one source
 
 Real extraction often has several inputs for one target — an Airbnb page and
@@ -312,14 +340,44 @@ for (const r of results) {
 }
 ```
 
-One failure never rejects the batch. The first item runs alone before the
-rest fan out, so a provider that caches the prompt prefix writes it once and
-every later item reads it (`primeCache: false` to skip). A retryable
-provider error — a 429, an overload, a dropped connection — pauses the whole
-batch rather than each item rediscovering the limit, with a delay that
-doubles per consecutive failure and resets on success (`retry` tunes it).
-Pass `provenance: true` for per-field provenance on every item, and a
-`signal` to stop starting new items.
+One failure never rejects the batch. Each result carries the item's `usage`,
+and every span an item emits is stamped with `itemIndex` (and `itemLabel`
+for labelled input), so a trace sink can attribute calls under concurrency.
+A retryable provider error — a 429, an overload, a dropped connection —
+pauses the whole batch rather than each item rediscovering the limit, with a
+delay that doubles per consecutive failure and resets on success (`retry`
+tunes it). Pass `provenance: true` for per-field provenance on every item,
+and a `signal` to stop starting new items.
+
+Inputs may be an array or any iterable, including an async one, so the batch
+can start while pages are still being fetched:
+
+```ts
+const results = await coerceMany<Partial<Listing>>(fetchPages(urls), {
+  provider,
+  schema,
+  mode: "partialCoerce",
+  primeCache: "eager",
+});
+```
+
+A provider that caches the prompt prefix should write it once and have
+every item read it. By default the first item runs alone and the rest fan
+out after it, which costs no extra call but makes the batch wait for one
+whole item. `primeCache: "eager"` sends a small warm-up call the moment the
+batch starts instead, so no item waits on another — the right setting when
+inputs stream in. To overlap the warm-up with your own work, start it
+yourself and hand over the promise:
+
+```ts
+const primed = primeCache({ provider, schema, mode: "partialCoerce" }); // don't await
+const pages = await fetchAll(urls);                                       // …meanwhile
+const results = await coerceMany(pages, { provider, schema, mode: "partialCoerce", primed });
+```
+
+The warm-up must use the same schema, mode, provenance setting and
+instructions as the batch: a different prefix warms nothing. A warm-up that
+fails is traced and the batch runs anyway, only colder.
 
 ## Budgeting the input
 
@@ -422,7 +480,11 @@ only the SDK it uses:
 Both wrap their SDK's own retry and timeout handling rather than re-implementing
 it, and raise a typed error carrying a `kind` — `api`, `truncated`, or
 `no_output` — so a caller can tell a rate limit from a refusal from an output
-that ran out of tokens. The Anthropic provider can cache the stable prefix
+that ran out of tokens. Neither sends sampling parameters unless you set
+them, since newer models reject `temperature`. The Anthropic provider
+disables adaptive thinking for Claude 5 models, which a forced tool call
+requires, and takes `requestOverrides` for the next model-specific
+parameter. The Anthropic provider can cache the stable prefix
 (system prompt plus tool schema) across a batch, which is where the cost goes
 when you are importing many records against one schema.
 

@@ -5,6 +5,7 @@ import {
   DEFAULT_MAX_RETRIES,
   DEFAULT_MAX_TOKENS,
   DEFAULT_TIMEOUT_MS,
+  isClaude5Model,
 } from "./anthropic-config.js";
 import { AnthropicProviderError, toProviderError } from "./errors.js";
 import { toInputSchema, toToolName } from "./schema-converter.js";
@@ -63,11 +64,16 @@ export class AnthropicProvider implements Provider {
       request.resolvedEnums,
     );
 
+    // Sampling parameters go only when configured: newer models reject
+    // `temperature` (and `top_p`/`top_k`) outright, and structured
+    // extraction does not need them.
+    const thinking = this.config.thinking ?? (isClaude5Model(this.config.model) ? { type: "disabled" as const } : undefined);
     const message = await this.send(
       {
         model: this.config.model,
         max_tokens: maxTokens,
-        temperature: this.config.temperature ?? 0,
+        ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
+        ...(thinking ? { thinking } : {}),
         system: this.buildSystem(request.systemPrompt),
         messages: [{ role: "user", content: request.userInput }],
         tools: [
@@ -78,6 +84,7 @@ export class AnthropicProvider implements Provider {
           },
         ],
         tool_choice: { type: "tool", name: toolName },
+        ...this.config.requestOverrides,
       },
       this.callOptions,
     );

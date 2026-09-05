@@ -32,7 +32,7 @@ SemblConfig.configure({
 | `model`       | —                    | Required.                                          |
 | `apiKey`      | `OPENAI_API_KEY`     | Falls back to the SDK's own env lookup.            |
 | `baseURL`     | OpenAI production    | Point at a gateway or compatible endpoint.         |
-| `temperature` | `0`                  |                                                    |
+| `temperature` | not sent             | Sent only when set; reasoning models reject it.    |
 | `maxTokens`   | SDK default          |                                                    |
 | `maxRetries`  | SDK default (`2`)    | Retries are the SDK's own; this configures them.   |
 | `timeoutMs`   | `120000`             | Per attempt. Worst case is roughly this × (`maxRetries` + 1), plus backoff. |

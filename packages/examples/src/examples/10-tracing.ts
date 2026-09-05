@@ -1,4 +1,4 @@
-import { coerce, ConsoleSink } from "@sembl/core";
+import { coerce, coerceDetailed, ConsoleSink } from "@sembl/core";
 import type { TraceSink, TraceSpan, ProviderUsage } from "@sembl/core";
 import { Listing } from "../support/listing-runtime.js";
 import { demoProvider, enumResolver, sample } from "../support/provider.js";
@@ -38,6 +38,10 @@ export async function run(): Promise<void> {
   });
 
   heading("A custom sink can account for tokens");
-  show("usage", { calls: usage.calls, promptTokens: usage.prompt, completionTokens: usage.completion, cacheReadTokens: usage.cacheRead });
+  show("usage from the sink", { calls: usage.calls, promptTokens: usage.prompt, completionTokens: usage.completion, cacheReadTokens: usage.cacheRead });
+
+  heading("…but coerceDetailed hands usage back directly, summed over every call");
+  const detailed = await coerceDetailed<Listing>(sample("city-flat.txt"), { provider, schema: Listing, enumResolver });
+  show("usage", detailed.usage);
   note("Replayed calls report the usage that was recorded when they first ran.");
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { coerceMany } from "../coerce/coerce-many.js";
+import { primeCache } from "../coerce/coerce.js";
 import { CoerceError } from "../errors/coerce-error.js";
 import type { Provider, ProviderRequest } from "../provider/types.js";
 import type { RuntimeSchema } from "../schema/types.js";
@@ -262,5 +263,115 @@ describe("coerceMany", () => {
   it("handles an empty batch", async () => {
     const provider: Provider = { async complete() { return { data: {} }; } };
     expect(await coerceMany([], { provider, schema })).toEqual([]);
+  });
+});
+
+describe("coerceMany priming and streaming", () => {
+  function recordingProvider() {
+    const inputs: string[] = [];
+    let inFlight = 0;
+    let peak = 0;
+    const provider: Provider = {
+      async complete(request) {
+        inputs.push(nameOf(request));
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((r) => setTimeout(r, 5));
+        inFlight -= 1;
+        return {
+          data: { name: nameOf(request).startsWith("Cache warm-up") ? null : nameOf(request) },
+          usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12, cacheWriteTokens: inputs.length === 1 ? 10 : 0, cacheReadTokens: inputs.length === 1 ? 0 : 10 },
+        };
+      },
+    };
+    return { provider, inputs, peak: () => peak };
+  }
+
+  it("accepts an async iterable and keeps results in order", async () => {
+    const { provider } = recordingProvider();
+    async function* pages() {
+      for (const name of ["a", "b", "c"]) {
+        await new Promise((r) => setTimeout(r, 2));
+        yield name;
+      }
+    }
+    const results = await coerceMany<{ name: string }>(pages(), { provider, schema, primeCache: false });
+    expect(results.map((r) => r.ok && r.data.name)).toEqual(["a", "b", "c"]);
+    expect(results.map((r) => r.index)).toEqual([0, 1, 2]);
+  });
+
+  it("primes eagerly with a warm-up call instead of a solo item", async () => {
+    const { provider, inputs, peak } = recordingProvider();
+    const results = await coerceMany<{ name: string }>(["a", "b", "c"], {
+      provider,
+      schema,
+      primeCache: "eager",
+      concurrency: 3,
+    });
+    expect(inputs[0]).toMatch(/^Cache warm-up/);
+    expect(inputs.slice(1).sort()).toEqual(["a", "b", "c"]);
+    // Every real item fanned out at once after the warm-up.
+    expect(peak()).toBe(3);
+    expect(results.every((r) => r.ok)).toBe(true);
+  });
+
+  it("waits for a prefix primed by the caller, then fans out", async () => {
+    const { provider, inputs, peak } = recordingProvider();
+    const primed = primeCache({ provider, schema });
+    const results = await coerceMany<{ name: string }>(["a", "b"], {
+      provider,
+      schema,
+      primed,
+      concurrency: 2,
+    });
+    const prefix = await primed;
+    expect(prefix.schemaId).toBe("Person");
+    expect(prefix.usage.calls).toBe(1);
+    expect(inputs[0]).toMatch(/^Cache warm-up/);
+    expect(peak()).toBe(2);
+    expect(results.every((r) => r.ok)).toBe(true);
+  });
+
+  it("runs the batch anyway when the warm-up fails", async () => {
+    const { provider } = recordingProvider();
+    const primed = Promise.reject(new Error("warm-up exploded"));
+    const results = await coerceMany<{ name: string }>(["a"], { provider, schema, primed });
+    expect(results[0].ok).toBe(true);
+  });
+
+  it("reports usage per item and types onItem", async () => {
+    const { provider } = recordingProvider();
+    const names: string[] = [];
+    const results = await coerceMany<{ name: string }>(["a", "b"], {
+      provider,
+      schema,
+      primeCache: false,
+      onItem: (r) => {
+        if (r.ok) names.push(r.data.name);
+      },
+    });
+    expect(names.sort()).toEqual(["a", "b"]);
+    expect(results[0].usage).toMatchObject({ calls: 1, promptTokens: 10, completionTokens: 2 });
+  });
+
+  it("stamps itemIndex and itemLabel on every span", async () => {
+    const { provider } = recordingProvider();
+    const spans: { name: string; attributes?: Record<string, unknown> }[] = [];
+    await coerceMany(["a", { label: "Second", text: "b" }], {
+      provider,
+      schema,
+      primeCache: false,
+      traceSinks: [{ write: (span) => spans.push({ name: span.name, attributes: span.attributes }) }],
+    });
+    const calls = spans.filter((s) => s.name === "llmCall");
+    expect(calls.map((s) => s.attributes?.itemIndex).sort()).toEqual([0, 1]);
+    expect(calls.find((s) => s.attributes?.itemIndex === 1)?.attributes?.itemLabel).toBe("Second");
+    expect(spans.filter((s) => s.name === "coerce").every((s) => "itemIndex" in (s.attributes ?? {}))).toBe(true);
+  });
+
+  it("handles an empty async iterable", async () => {
+    const { provider } = recordingProvider();
+    async function* none() {}
+    expect(await coerceMany(none(), { provider, schema })).toEqual([]);
   });
 });

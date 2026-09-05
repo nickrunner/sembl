@@ -5,6 +5,27 @@ packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
 `@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
 lockstep, so one entry covers a release.
 
+## Unreleased
+
+From the Stays integration:
+
+- The Anthropic provider no longer sends `temperature` unless configured
+  (Claude 5 models reject it), disables adaptive thinking for Claude 5
+  models so a forced tool call is accepted, and takes `thinking` and
+  `requestOverrides`. The OpenAI provider also sends `temperature` only when
+  set.
+- `coerceDetailed` and `partialCoerceDetailed` return `issues` and `usage`
+  without provenance; provenance results and every `coerceMany` result now
+  carry `usage` too.
+- `coerceMany` accepts any iterable, async ones included; `primeCache:
+  "eager"` warms the cache with one small call instead of a solo item; a
+  caller can `primeCache()` themselves while fetching and pass `primed`.
+  `onItem` is typed, and every span of an item carries `itemIndex` and
+  `itemLabel`.
+- `retryOnEmpty` re-asks when a non-empty input yields no fields, and the
+  prompt says a stated default (`1`, `0`, `false`) is still a value.
+- Provenance's `source` is required whenever there are several sources.
+
 ## 0.3.0
 
 - `instructions` on every coercion, `sembl()` and the global config: caller
