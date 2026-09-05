@@ -39,8 +39,17 @@ Input modalities:
   `jsonItems`, `xmlSource` / `xmlItems`, `feedItems` for RSS and Atom,
   `icsSource` / `icsEvents`, and `availabilityWindows` with recurrence
   expanded and DST-correct.
+- New package `@sembl/source-image` (no dependencies): `sniffImageType`,
+  `imageDimensions`, `extractExif` (date, GPS, orientation, camera; never
+  throws), `imageSource` with size limits and typed errors, `imageSources`
+  adding a photo-metadata text source beside the image, `fetchImages` for a
+  harvested gallery with count and size caps and an injectable fetch, and
+  the `ImageResizer` seam with `prepareImages`. Companion
+  `@sembl/source-image-sharp` (sharp): `SharpResizer` downscales to 1568px,
+  auto-orients, strips metadata, converts formats; HEIC only where the
+  installed libvips can decode it.
 - Every source package returns `TextSource`, so `.text` stays typed.
-- Examples 14–20, one per modality.
+- Examples 14–21, one per modality.
 
 ## 0.5.0
 

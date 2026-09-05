@@ -459,9 +459,14 @@ its parser as its own dependency and nothing added to core:
 | `@sembl/source-audio` | recordings: a pluggable transcriber, timestamps as evidence            |
 | `@sembl/source-docx`  | Word and OpenDocument files: one source per section, tables kept       |
 | `@sembl/source-feed`  | XML, RSS/Atom, iCalendar and JSON: one source per item                 |
+| `@sembl/source-image` | photos: type sniffing, EXIF (date, GPS, orientation) as a text source beside the image, gallery fetching with limits |
+| `@sembl/source-image-sharp` | a `SharpResizer`: downscale to 1568px, auto-orient, strip metadata, convert formats |
 
 Each package README has the details. `@sembl/source-pdf` needs Node 22.13 or
-later, which pdf.js requires; the rest run on Node 20.
+later, which pdf.js requires; the rest run on Node 20. The sharp adapter is a
+separate package so the native dependency is only installed by those who
+resize; a photo's EXIF GPS is often better evidence for an address than
+anything read off the picture, which is why the metadata rides along as text.
 
 ## Knowing what to trust
 
@@ -610,7 +615,9 @@ by how much), `enumSourceFailed`, `repairAttempt`, and `issuesResolved` (what
 | `@sembl/source-audio`       | audio → timestamped transcript sources                              |
 | `@sembl/source-docx`        | Word/ODT → per-section sources                                      |
 | `@sembl/source-feed`        | XML, RSS/Atom, iCal, JSON → per-item sources                        |
-| `@sembl/examples`           | twenty runnable examples  (private)                                |
+| `@sembl/source-image`       | photo sniffing, EXIF, gallery fetching, resizer seam               |
+| `@sembl/source-image-sharp` | sharp-backed resizer                                               |
+| `@sembl/examples`           | twenty-one runnable examples (private)                                |
 
 ## Development
 
@@ -628,7 +635,7 @@ these steps.
 
 ## Examples
 
-`packages/examples` has twenty runnable examples, one per feature, from the
+`packages/examples` has twenty-one runnable examples, one per feature, from the
 basics through batches, injection-resistant sources, HTML budgeting,
 provenance, tracing, replay and evals — see its
 [README](packages/examples/README.md). Build, put a key in
