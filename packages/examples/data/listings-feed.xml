@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Coastal Stays partner feed, exported nightly. Fictional. -->
+<listings xmlns="urn:coastal-stays:feed:v2" xmlns:geo="urn:coastal-stays:geo" generated="2026-03-01T04:00:00Z" partner="coastal-stays">
+  <listing id="sc-101" status="active" type="cabin">
+    <title>Sea Cabin &amp; Sauna</title>
+    <description><![CDATA[<p>A timber cabin right on the shore, twenty minutes south of Bergen. <b>Sleeps 6</b>: two bedrooms plus a sofa bed in the living room.</p>
+<ul><li>Wood-fired sauna on the jetty</li><li>Hot tub</li><li>Fast wifi, full kitchen</li><li>Two kayaks for guests</li></ul>
+<p>Well-behaved dogs are welcome &mdash; there is a fenced garden.</p>]]></description>
+    <rate currency="EUR" period="night">250</rate>
+    <capacity>
+      <guests>6</guests>
+      <bedrooms>2</bedrooms>
+      <bathrooms>1</bathrooms>
+    </capacity>
+    <features>
+      <feature>wifi</feature>
+      <feature>kitchen</feature>
+      <feature>sauna</feature>
+      <feature>hot tub</feature>
+      <feature>kayaks</feature>
+    </features>
+    <policies>
+      <pets>allowed</pets>
+      <smoking>no</smoking>
+      <checkin>15:00</checkin>
+      <checkout>11:00</checkout>
+    </policies>
+    <geo:address>
+      <geo:street>Strandveien 14</geo:street>
+      <geo:city>Bergen</geo:city>
+      <geo:postcode>5003</geo:postcode>
+      <geo:country>NO</geo:country>
+    </geo:address>
+    <photo url="https://coastal-stays.example/img/sc-101-1.jpg" />
+    <photo url="https://coastal-stays.example/img/sc-101-2.jpg" />
+  </listing>
+  <listing id="cf-202" status="active" type="flat">
+    <title>City Flat &#8212; two minutes from Piccadilly station</title>
+    <description><![CDATA[Bright two-room flat on the third floor (no lift). Double bed and a fold-out for a child. Balcony over the canal. Wifi and a small kitchen. Sorry, no pets.]]></description>
+    <rate currency="GBP" period="night">140</rate>
+    <capacity>
+      <guests>3</guests>
+      <bedrooms>1</bedrooms>
+      <bathrooms>1</bathrooms>
+    </capacity>
+    <features>
+      <feature>wifi</feature>
+      <feature>kitchen</feature>
+      <feature>balcony</feature>
+    </features>
+    <policies>
+      <pets>not allowed</pets>
+    </policies>
+    <geo:address>
+      <geo:city>Manchester</geo:city>
+      <geo:postcode>M1 2AB</geo:postcode>
+      <geo:country>GB</geo:country>
+    </geo:address>
+  </listing>
+  <listing id="ob-303" status="active" type="barn">
+    <title>The Old Barn at Hollow Farm</title>
+    <description><![CDATA[<p>A converted stone barn on a working farm in the Cotswolds. Four bedrooms, sleeps <strong>ten</strong> with the bunk room. Heated outdoor pool (May&ndash;September), parking for four cars, and an EV charger in the yard.</p><p>Dogs by arrangement.</p>]]></description>
+    <rate currency="GBP" period="night">480</rate>
+    <capacity>
+      <guests>10</guests>
+      <bedrooms>4</bedrooms>
+      <bathrooms>3</bathrooms>
+    </capacity>
+    <features>
+      <feature>pool</feature>
+      <feature>parking</feature>
+      <feature>ev charger</feature>
+      <feature>wifi</feature>
+      <feature>kitchen</feature>
+    </features>
+    <policies>
+      <pets>by arrangement</pets>
+    </policies>
+    <geo:address>
+      <geo:city>Chipping Campden</geo:city>
+      <geo:postcode>GL55 6XY</geo:postcode>
+      <geo:country>GB</geo:country>
+    </geo:address>
+  </listing>
+  <listing id="lh-404" status="paused" type="lakehouse">
+    <title>Lakehouse Solvik</title>
+    <description><![CDATA[Modern lakehouse with its own jetty and rowing boat. Sleeps 8 in three bedrooms. Sauna, wifi, kitchen, parking. Currently paused for renovation until April.]]></description>
+    <rate currency="SEK" period="night">3200</rate>
+    <capacity>
+      <guests>8</guests>
+      <bedrooms>3</bedrooms>
+    </capacity>
+    <features>
+      <feature>sauna</feature>
+      <feature>wifi</feature>
+      <feature>kitchen</feature>
+      <feature>parking</feature>
+    </features>
+    <geo:address>
+      <geo:city>Dalarö</geo:city>
+      <geo:country>SE</geo:country>
+    </geo:address>
+  </listing>
+</listings>

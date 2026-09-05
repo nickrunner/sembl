@@ -18,6 +18,7 @@
     "@sembl/source-audio": "workspace:*",
     "@sembl/source-docx": "workspace:*",
     "@sembl/source-email": "workspace:*",
+    "@sembl/source-feed": "workspace:*",
     "@sembl/source-html": "workspace:*",
     "@sembl/source-pdf": "workspace:*",
     "@sembl/source-table": "workspace:*",
