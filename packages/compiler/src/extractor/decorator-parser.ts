@@ -6,6 +6,7 @@ import {
   type Decorator,
 } from "ts-morph";
 import type { FieldConstraints } from "@sembl/core";
+import { FIELD_FORMATS } from "@sembl/core";
 import type { FieldScope } from "./extraction-context.js";
 
 /**
@@ -26,6 +27,7 @@ const CONSTRAINT_KEYS: Record<
   minItems: "number",
   maxItems: "number",
   pattern: "string",
+  format: "string",
 };
 
 /**
@@ -170,6 +172,15 @@ function readConstraintEntry(
       scope,
       `@Constrain value for "${key}" is \`${initializer.getText()}\`, which is not ` +
         `a ${expected} literal the compiler can read from source. Skipping it.`,
+    );
+    return false;
+  }
+
+  if (key === "format" && !(FIELD_FORMATS as readonly string[]).includes(value as string)) {
+    scope.context.warn(
+      scope,
+      `@Constrain format "${String(value)}" is not a known format. ` +
+        `Expected one of: ${FIELD_FORMATS.join(", ")}. Skipping it.`,
     );
     return false;
   }

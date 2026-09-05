@@ -26,6 +26,19 @@ From the Stays integration:
   prompt says a stated default (`1`, `0`, `false`) is still a value.
 - Provenance's `source` is required whenever there are several sources.
 
+## Unreleased
+
+Block 2 of the Stays requests:
+
+- `format` on `@Constrain` / `field.*` constraints: `url`, `email`, `date`,
+  `datetime`, `iso-country`, `us-state`, `us-state-name`, `currency`. Stated
+  in the prompt, validated locally, emitted as JSON Schema `format` or
+  `pattern` in the standard dialect. The compiler reads it and warns on an
+  unknown format.
+- `provenanceFields` on the provenance coercions, and `provenance:
+  string[]` on `coerceMany`, annotate only the listed fields.
+- `Source.maxChars` caps one source before the total budget is shared.
+
 ## 0.3.0
 
 - `instructions` on every coercion, `sembl()` and the global config: caller

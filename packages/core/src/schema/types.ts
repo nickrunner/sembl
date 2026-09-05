@@ -1,3 +1,5 @@
+import type { FieldFormat } from "./formats.js";
+
 /**
  * Bounds a field's value beyond its type.
  *
@@ -7,6 +9,8 @@
  * each element, so `string[]` can carry both `maxItems` and `maxLength`.
  */
 export interface FieldConstraints {
+  /** A named string format: `"url"`, `"date"`, `"iso-country"`, `"currency"`, … */
+  format?: FieldFormat;
   /** Maximum string length, inclusive */
   maxLength?: number;
   /** Minimum string length, inclusive */

@@ -11,6 +11,12 @@ export interface Source {
   label?: string;
   /** The text itself. */
   text: string;
+  /**
+   * A cap on this source's own characters, applied before the coercion's
+   * total `maxInputChars`, so one huge page cannot starve the others. Cut
+   * with the coercion's `truncate` policy.
+   */
+  maxChars?: number;
 }
 
 /**
@@ -30,7 +36,8 @@ export function isSource(value: unknown): value is Source {
     value !== null &&
     !Array.isArray(value) &&
     typeof (value as Source).text === "string" &&
-    ((value as Source).label === undefined || typeof (value as Source).label === "string")
+    ((value as Source).label === undefined || typeof (value as Source).label === "string") &&
+    ((value as Source).maxChars === undefined || typeof (value as Source).maxChars === "number")
   );
 }
 
@@ -72,7 +79,9 @@ export function toSources(input: CoerceInput): Source[] {
 /** Drop a label that would render as nothing. */
 function cleanLabel(source: Source): Source {
   const label = source.label?.trim();
-  return label ? { label, text: source.text } : { text: source.text };
+  const cleaned: Source = label ? { label, text: source.text } : { text: source.text };
+  if (source.maxChars !== undefined) cleaned.maxChars = source.maxChars;
+  return cleaned;
 }
 
 /**

@@ -18,22 +18,26 @@ export async function run(): Promise<void> {
   const text = `Lovely place by the water, probably fits a family or two couples.
 Hot tub I think, definitely a kitchen. Somewhere near Bend. Not cheap but fair.`;
   note(text);
+  const reviewed = ["name", "sleeps", "nightlyRate", "address"];
+  note(`Only ${reviewed.join(", ")} are annotated (provenanceFields); the rest come back plain and cost nothing extra.`);
   const { data, provenance } = await partialCoerceWithProvenance<Listing>(text, {
     provider,
     schema: Listing,
     enumResolver,
     onInvalidField: "drop",
+    provenanceFields: reviewed,
   });
 
   table(
     Object.entries(data).map(([field, value]) => {
       const p = provenance[field];
+      const annotated = reviewed.includes(field);
       return {
         field,
         value: JSON.stringify(value),
-        confidence: p?.confidence ?? "(none)",
+        confidence: annotated ? (p?.confidence ?? "(none)") : "—",
         evidence: p?.evidence ?? "",
-        review: needsReview(p) ? "FLAG" : "",
+        review: annotated && needsReview(p) ? "FLAG" : "",
       };
     }),
   );

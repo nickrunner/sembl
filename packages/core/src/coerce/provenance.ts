@@ -83,6 +83,34 @@ export interface ProvenanceOptions {
    * Each annotation then also asks which source the value was read from.
    */
   sourceLabels?: readonly string[];
+  /**
+   * Only these top-level fields are wrapped; every other field comes back
+   * as a plain value with no provenance. Halves the output on schemas where
+   * a human reviews a handful of fields and code checks the rest. All
+   * fields when absent.
+   */
+  fields?: readonly string[];
+}
+
+/**
+ * The top-level fields provenance applies to, validated against the schema:
+ * a name that is not a field is a typo that would otherwise silently drop
+ * the wrapper the caller asked for.
+ */
+export function provenanceFieldNames(
+  schema: RuntimeSchema,
+  fields: readonly string[] | undefined,
+): Set<string> {
+  if (fields === undefined) return new Set(schema.fields.map((f) => f.name));
+  const known = new Set(schema.fields.map((f) => f.name));
+  for (const name of fields) {
+    if (!known.has(name)) {
+      throw new RangeError(
+        `provenance field "${name}" is not a field of schema "${schema.id}" (fields: ${[...known].join(", ")})`,
+      );
+    }
+  }
+  return new Set(fields);
 }
 
 /**
@@ -91,8 +119,17 @@ export interface ProvenanceOptions {
  */
 export function provenanceInstructions(options: ProvenanceOptions = {}): string {
   const labels = options.sourceLabels ?? [];
-  if (labels.length < 2) return PROVENANCE_INSTRUCTIONS;
-  return `${PROVENANCE_INSTRUCTIONS}\n- Always set \`source\` to the label of the source the value was read from. When several agree, name the one quoted in \`evidence\`.`;
+  let text = PROVENANCE_INSTRUCTIONS;
+  if (options.fields !== undefined) {
+    text = text.replace(
+      "- Every field is wrapped as an object: put the extracted value in `value`.",
+      `- Only these fields are wrapped as objects, with the extracted value in \`value\`: ${options.fields.join(", ")}. Every other field is a plain value.`,
+    );
+  }
+  if (labels.length >= 2) {
+    text += "\n- Always set `source` to the label of the source the value was read from. When several agree, name the one quoted in `evidence`.";
+  }
+  return text;
 }
 
 /**
@@ -163,8 +200,13 @@ export function toProvenanceSchema(
   const schemas: Record<string, RuntimeSchema> = { ...(bundle?.schemas ?? {}) };
   const fields: FieldDescriptor[] = [];
   const sourceLabels = options.sourceLabels ?? [];
+  const wrapped = provenanceFieldNames(schema, options.fields);
 
   for (const field of schema.fields) {
+    if (!wrapped.has(field.name)) {
+      fields.push(field);
+      continue;
+    }
     const annotation = annotationSchema(schema.id, field, sourceLabels);
     schemas[annotation.id] = annotation;
     fields.push({

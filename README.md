@@ -90,9 +90,16 @@ export class Listing {
 }
 ```
 
-`@Constrain` takes lengths, numeric ranges, array sizes, and a pattern. On an
-array field the string and number bounds apply to each element, so `string[]`
-can carry both `maxItems` and `maxLength`.
+`@Constrain` takes lengths, numeric ranges, array sizes, a pattern, and a
+named `format`. On an array field the string and number bounds apply to each
+element, so `string[]` can carry both `maxItems` and `maxLength`.
+
+Formats cover the fields every pipeline ends up normalising by hand:
+`"iso-country"` (`US`, not "United States"), `"us-state"` (`CA`) or
+`"us-state-name"` (`California`), `"currency"` (`EUR`, not "€"), `"url"`,
+`"email"`, `"date"` (`YYYY-MM-DD`) and `"datetime"` (ISO 8601). Each is
+stated in the prompt, validated locally, and emitted as JSON Schema `format`
+or `pattern` in the dialects that honour them.
 
 `@ValuesFrom` says the legal values aren't in the source tree — they come from
 a named source you resolve at coercion time. That's the shape a CMS taxonomy or
@@ -396,7 +403,8 @@ await coerce<Listing>(htmlSource(html, "Listing"), {
 
 The budget covers all sources together. Every source that fits within an
 equal share keeps its whole text; what those leave unused goes to the longer
-ones, so a short email next to a long page is never touched. A cut is marked
+ones, so a short email next to a long page is never touched. A source can
+also carry its own `maxChars`, applied first, for a page known to be huge. A cut is marked
 in place with how much was omitted, and an `inputTruncated` trace event
 records it, so truncation is never silent. Tokens vary by model; as a rule of
 thumb English prose runs about four characters per token.
@@ -436,6 +444,19 @@ Under the hood this asks for a derived schema where each field is wrapped as
 validates the values against your original schema. No provider knows anything
 about it. Only top-level fields are annotated; a nested object keeps its
 ordinary shape inside `value`.
+
+Provenance roughly doubles the output, and usually only a few fields are
+worth a human's look. `provenanceFields` annotates just those and returns the
+rest plain:
+
+```ts
+await partialCoerceWithProvenance<Listing>(page, {
+  provider,
+  schema,
+  provenanceFields: ["description", "nightlyRate", "address"],
+});
+// coerceMany takes the same list as `provenance: ["description", …]`
+```
 
 It costs a larger schema and a longer response, so reach for it where a human
 reviews the result rather than on a hot path. It isn't available on the fluent

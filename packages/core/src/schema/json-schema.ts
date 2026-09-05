@@ -1,3 +1,4 @@
+import { formatToJsonSchema } from "./formats.js";
 import type {
   RuntimeSchema,
   FieldDescriptor,
@@ -72,6 +73,9 @@ function constraintsToJsonSchema(
   }
 
   const out: JsonSchema = {};
+  if (constraints.format !== undefined) {
+    Object.assign(out, formatToJsonSchema(constraints.format));
+  }
   for (const keyword of CONSTRAINT_KEYWORDS) {
     const value = constraints[keyword];
     if (value !== undefined) {

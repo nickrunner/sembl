@@ -10,7 +10,7 @@ export async function run(): Promise<void> {
   const base = { provider, schema: Listing, enumResolver };
 
   heading("Without a hint");
-  note("The barn is priced in pounds. The schema asks for an ISO currency code but says nothing about symbols.");
+  note("The barn is priced in pounds. The schema requires an ISO 4217 code but says nothing about symbols.");
   const plain = await partialCoerce<Listing>(sample("barn.txt"), base);
   show("nightlyRate / currency", { nightlyRate: plain.nightlyRate, currency: plain.currency ?? "(absent)" });
 

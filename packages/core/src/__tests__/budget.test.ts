@@ -82,3 +82,27 @@ describe("budgetSources", () => {
     expect(cut.text).toContain("characters omitted");
   });
 });
+
+describe("per-source caps", () => {
+  it("caps a source on its own with no total budget", () => {
+    const result = budgetSources([{ label: "page", text: text(5000), maxChars: 500 }, { text: text(100) }], undefined);
+    expect(result.sources[0].text.length).toBeLessThanOrEqual(500);
+    expect(result.sources[1].text.length).toBe(100);
+    expect(result.truncated).toEqual([{ label: "page", originalLength: 5000, keptLength: result.sources[0].text.length }]);
+  });
+
+  it("applies the cap before the total, so a capped page cannot starve the rest", () => {
+    const result = budgetSources(
+      [
+        { label: "page", text: text(10000), maxChars: 1000 },
+        { label: "email", text: text(900) },
+      ],
+      1800,
+    );
+    expect(result.sources[1].text.length).toBe(900);
+    expect(result.sources[0].text.length).toBeLessThanOrEqual(900);
+    // One record for the page even though it was cut twice.
+    expect(result.truncated).toHaveLength(1);
+    expect(result.truncated[0]).toMatchObject({ label: "page", originalLength: 10000 });
+  });
+});

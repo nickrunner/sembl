@@ -15,8 +15,8 @@ export class Listing {
   @Constrain({ minimum: 0 })
   nightlyRate?: number;
 
-  @Describe("ISO 4217 code of the currency the rate is quoted in, e.g. USD, EUR, GBP.")
-  @Constrain({ pattern: "^[A-Z]{3}$" })
+  @Describe("The currency the rate is quoted in.")
+  @Constrain({ format: "currency" })
   currency?: string;
 
   @Describe("Amenities the property offers.")

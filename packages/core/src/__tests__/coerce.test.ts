@@ -829,3 +829,37 @@ describe("retryOnEmpty", () => {
     await expect(partialCoerce("x", { provider, schema: nameSchema, retryOnEmpty: -1 })).rejects.toThrow(RangeError);
   });
 });
+
+describe("per-source maxChars", () => {
+  const nameSchema: RuntimeSchema = {
+    id: "Person",
+    description: "A person.",
+    fields: [{ name: "name", description: "Name", type: { kind: "string" }, required: true }],
+  };
+
+  it("cuts only the capped source and records it", async () => {
+    let request: ProviderRequest | undefined;
+    const events: string[] = [];
+    const provider: Provider = {
+      async complete(r) {
+        request = r;
+        return { data: { name: "Ada" } };
+      },
+    };
+    await coerce(
+      [
+        { label: "Page", text: "p".repeat(5000), maxChars: 300 },
+        { label: "Email", text: "e".repeat(1000) },
+      ],
+      {
+        provider,
+        schema: nameSchema,
+        traceSinks: [{ write: (span) => events.push(...span.events.map((e) => e.name)) }],
+      },
+    );
+    expect(request?.userInput).toContain("e".repeat(1000));
+    expect(request?.userInput).not.toContain("p".repeat(400));
+    expect(request?.userInput).toContain("characters omitted");
+    expect(events).toContain("inputTruncated");
+  });
+});
