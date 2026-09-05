@@ -171,3 +171,61 @@ describe("repair loop", () => {
     ).rejects.toThrow(RangeError);
   });
 });
+
+describe("multi-turn repair", () => {
+  const schema: RuntimeSchema = {
+    id: "Quote",
+    description: "A quote.",
+    fields: [{ name: "price", description: "Price", type: { kind: "number" }, required: true }],
+  };
+
+  function turnAwareProvider(answers: Record<string, unknown>[], supportsHistory: boolean) {
+    const requests: ProviderRequest[] = [];
+    const provider: Provider = {
+      supportsHistory,
+      async complete(request) {
+        requests.push(request);
+        return { data: answers[Math.min(requests.length - 1, answers.length - 1)] };
+      },
+    };
+    return { provider, requests };
+  }
+
+  it("sends the rejected output and the correction as turns when the provider supports it", async () => {
+    const { provider, requests } = turnAwareProvider([{ price: "ten" }, { price: 10 }], true);
+    const result = await coerce<{ price: number }>("ten dollars", { provider, schema, maxRepairAttempts: 1 });
+    expect(result).toEqual({ price: 10 });
+    expect(requests[0].history).toBeUndefined();
+    expect(requests[1].userInput).toBe("<source>\nten dollars\n</source>");
+    expect(requests[1].history).toEqual([
+      { role: "assistant", data: { price: "ten" } },
+      { role: "user", text: expect.stringContaining("price: Expected number, got string") },
+    ]);
+    expect(requests[1].history?.[1]).toMatchObject({ text: expect.stringContaining("Return a corrected object") });
+  });
+
+  it("accumulates turns across repair rounds", async () => {
+    const { provider, requests } = turnAwareProvider([{ price: "a" }, { price: "b" }, { price: 3 }], true);
+    await coerce("x", { provider, schema, maxRepairAttempts: 2 });
+    expect(requests[2].history?.map((t) => t.role)).toEqual(["assistant", "user", "assistant", "user"]);
+    expect(requests[2].history?.[2]).toEqual({ role: "assistant", data: { price: "b" } });
+  });
+
+  it("folds the correction into the input for a provider without history", async () => {
+    const { provider, requests } = turnAwareProvider([{ price: "ten" }, { price: 10 }], false);
+    await coerce("ten dollars", { provider, schema, maxRepairAttempts: 1 });
+    expect(requests[1].history).toBeUndefined();
+    expect(requests[1].userInput).toContain("A previous attempt at this extraction produced");
+    expect(requests[1].userInput).toContain('"price": "ten"');
+  });
+
+  it("uses turns for an empty-result retry too", async () => {
+    const optional: RuntimeSchema = { ...schema, fields: [{ ...schema.fields[0], required: false }] };
+    const { provider, requests } = turnAwareProvider([{}, { price: 5 }], true);
+    await partialCoerce("five", { provider, schema: optional, retryOnEmpty: 1 });
+    expect(requests[1].history).toEqual([
+      { role: "assistant", data: {} },
+      { role: "user", text: expect.stringContaining("returned no fields") },
+    ]);
+  });
+});

@@ -13,6 +13,9 @@ import { toResponseFormat } from "./schema-converter.js";
  * back out into an {@link OpenAIProviderError}.
  */
 export class OpenAIProvider implements Provider {
+  /** Repair turns are rendered as assistant and user messages. */
+  readonly supportsHistory = true;
+
   private client: OpenAI;
   private config: OpenAIProviderConfig;
 
@@ -43,6 +46,11 @@ export class OpenAIProvider implements Provider {
         messages: [
           { role: "system", content: request.systemPrompt },
           { role: "user", content: request.userInput },
+          ...(request.history ?? []).map((turn) =>
+            turn.role === "assistant"
+              ? { role: "assistant" as const, content: JSON.stringify(turn.data) }
+              : { role: "user" as const, content: turn.text },
+          ),
         ],
         response_format: responseFormat,
       });

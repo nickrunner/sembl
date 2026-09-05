@@ -14,13 +14,31 @@ export interface ProviderConfig {
 }
 
 /**
+ * One earlier turn of a repair conversation. An assistant turn is the
+ * structured output the model produced; a user turn is what was said about
+ * it. Providers render them natively — as a tool call and its result, or as
+ * assistant and user messages — so the model sees its own rejected answer
+ * as its own rather than quoted back to it.
+ */
+export type ProviderTurn =
+  | { role: "assistant"; data: Record<string, unknown> }
+  | { role: "user"; text: string };
+
+/**
  * Request sent to a provider for structured output.
  */
 export interface ProviderRequest {
   /** System prompt with semantic context */
   systemPrompt: string;
-  /** User input to coerce */
+  /** User input to coerce — the first user turn of the conversation. */
   userInput: string;
+  /**
+   * Turns after `userInput`, in order, for a repair or an empty-result
+   * retry: the rejected output as an assistant turn, then the correction as
+   * a user turn, and so on. Only sent to a provider whose `supportsHistory`
+   * is true; other providers get the correction folded into `userInput`.
+   */
+  history?: ProviderTurn[];
   /** JSON Schema for structured output */
   jsonSchema: Record<string, unknown>;
   /** The runtime schema being targeted */
@@ -90,4 +108,10 @@ export interface Provider {
    * Send a structured output request to the LLM.
    */
   complete(request: ProviderRequest): Promise<ProviderResponse>;
+  /**
+   * Whether `complete` renders `request.history` as real turns. Leave unset
+   * (false) and repair corrections arrive as text inside `userInput`
+   * instead, which every provider can handle.
+   */
+  readonly supportsHistory?: boolean;
 }

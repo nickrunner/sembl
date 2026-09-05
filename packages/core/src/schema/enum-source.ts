@@ -1,29 +1,31 @@
+import type { RuntimeSchema } from "./types.js";
+
 /**
- * Supplies the legal values for a `dynamicEnum` source at coercion time.
- *
- * Sources are opaque to SEMBL: the id is whatever the schema author wrote in
- * `@ValuesFrom("...")`, and the caller decides how to turn it into values (a
- * CMS fetch, a database query, a static map). Called at most once per distinct
- * source id per coercion; the caller owns any caching across coercions.
- *
- * ```ts
- * const enumResolver: EnumResolver = async (sourceId) => {
- *   const docs = await cms.taxonomy(sourceId);
- *   return docs.map((d) => d.slug);
- * };
- * ```
+ * What a resolver is told about the source it is asked for, beyond its id:
+ * which schema is being coerced and where in it the source is used. One
+ * resolver can then serve several taxonomies, log which field asked, or
+ * refuse a source that a required field depends on but it cannot vouch for.
+ */
+export interface EnumResolverContext {
+  sourceId: string;
+  /** The schema being coerced — the root, not a nested one. */
+  schema: RuntimeSchema;
+  /** Whether a chain of required fields reaches the source. */
+  required: boolean;
+  /** Dotted paths of every field drawing from the source, e.g. `address.country`. */
+  paths: string[];
+}
+
+/**
+ * Resolves the legal values of a `@ValuesFrom` source at coercion time.
+ * Called once per distinct source id per coercion; caching is the caller's.
+ * The context argument is optional to accept — a resolver that only needs
+ * the id can ignore it.
  */
 export type EnumResolver = (
   sourceId: string,
+  context: EnumResolverContext,
 ) => readonly string[] | Promise<readonly string[]>;
 
-/**
- * The legal values for every enum source that resolved successfully,
- * keyed by source id.
- *
- * A source id absent from this map is *unresolved* — the field it backs falls
- * back to a free-form string. Successful resolution always yields a non-empty
- * array; an empty result is treated as a failure, not as "no legal values",
- * because a field with zero legal values is unsatisfiable.
- */
+/** Resolved values keyed by source id. */
 export type ResolvedEnums = Readonly<Record<string, readonly string[]>>;

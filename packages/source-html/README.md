@@ -18,6 +18,15 @@ const listing = await coerce<Listing>(htmlSource(html, "Airbnb listing"), {
 });
 ```
 
+`htmlSources(html, label)` returns the same content as two labelled sources
+— the structured data and the readable text — so that SEMBL's budget, which
+cuts long sources first, can never truncate the JSON-LD away however large
+the page. `extractImages(html, { baseUrl })` returns the page's images for a
+gallery: OpenGraph and Twitter card images first, then JSON-LD `image`
+values, then `<img>` tags including lazy-loaded ones and the widest `srcset`
+candidate, with tracking pixels, icons, logos, sprites and `data:` URIs
+dropped and duplicates folded.
+
 `htmlSource` renders the page in three sections, in this order:
 
 1. **Page metadata** — the `<title>` and every `<meta>` tag keyed by

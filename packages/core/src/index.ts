@@ -6,7 +6,7 @@ export type {
   RuntimeSchema,
   SchemaBundle,
 } from "./schema/types.js";
-export type { EnumResolver, ResolvedEnums } from "./schema/enum-source.js";
+export type { EnumResolver, EnumResolverContext, ResolvedEnums } from "./schema/enum-source.js";
 
 // Schema utilities
 export {
@@ -53,6 +53,7 @@ export type {
   ProviderConfig,
   ProviderRequest,
   ProviderResponse,
+  ProviderTurn,
   ProviderUsage,
 } from "./provider/types.js";
 
@@ -118,7 +119,7 @@ export type {
 } from "./coerce/resolve-issues.js";
 
 // Repair
-export { buildRepairInput } from "./coerce/repair.js";
+export { buildRepairInput, buildRepairCorrection } from "./coerce/repair.js";
 
 // Fluent API
 export { sembl, Coercible } from "./coerce/coercible.js";

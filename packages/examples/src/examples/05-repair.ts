@@ -11,8 +11,12 @@ export async function run(): Promise<void> {
 
   // Break only the first answer; the repair call goes to the model untouched.
   let calls = 0;
+  let turnsSeen = 0;
   const flaky: Provider = {
+    // Passing this through is what makes the repair a real conversation.
+    supportsHistory: provider.supportsHistory,
     async complete(request) {
+      turnsSeen = request.history?.length ?? 0;
       const response = await provider.complete(request);
       calls += 1;
       if (calls === 1) {
@@ -42,5 +46,5 @@ export async function run(): Promise<void> {
   });
   show("trace", events);
   show("Listing after repair", listing);
-  ok(`${calls} model calls: the second one saw the rejected output and the validation issues`);
+  ok(`${calls} model calls: the second one carried ${turnsSeen} prior turns — its own rejected answer, then the correction`);
 }

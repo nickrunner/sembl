@@ -21,7 +21,10 @@ export async function run(): Promise<void> {
     provider,
     schema,
     bundle,
-    enumResolver,
+    enumResolver: (sourceId, context) => {
+      note(`  resolver asked for "${sourceId}" by ${context.schema.id}.${context.paths.join(", ")} (${context.required ? "required" : "optional"})`);
+      return enumResolver(sourceId, context);
+    },
   });
   show("Listing", listing);
   const offTaxonomy = (listing.amenities ?? []).filter((a) => !taxonomy.amenities.includes(a));

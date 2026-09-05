@@ -160,3 +160,33 @@ describe("OpenAIProvider dynamic enums", () => {
     expect(sent.properties.kind.enum).toEqual(["cabin", "flat"]);
   });
 });
+
+describe("OpenAIProvider history", () => {
+  it("renders repair turns as assistant and user messages", async () => {
+    const provider = new OpenAIProvider({ model: "gpt-4o", apiKey: "test-key" });
+    expect(provider.supportsHistory).toBe(true);
+    const mockCreate = (provider as unknown as { client: { chat: { completions: { create: ReturnType<typeof vi.fn> } } } }).client.chat.completions.create;
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({ city: "Berlin", zip: null }) } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+    await provider.complete({
+      systemPrompt: "sys",
+      userInput: "in",
+      jsonSchema: {},
+      schema: testSchema,
+      history: [
+        { role: "assistant", data: { city: 42 } },
+        { role: "user", text: "city must be a string" },
+      ],
+    });
+
+    expect(mockCreate.mock.calls[0][0].messages).toEqual([
+      { role: "system", content: "sys" },
+      { role: "user", content: "in" },
+      { role: "assistant", content: '{"city":42}' },
+      { role: "user", content: "city must be a string" },
+    ]);
+  });
+});
