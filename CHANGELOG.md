@@ -5,7 +5,7 @@ packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
 `@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
 lockstep, so one entry covers a release.
 
-## Unreleased
+## 0.4.0
 
 From the Stays integration:
 
@@ -26,7 +26,6 @@ From the Stays integration:
   prompt says a stated default (`1`, `0`, `false`) is still a value.
 - Provenance's `source` is required whenever there are several sources.
 
-## Unreleased
 
 Block 2 of the Stays requests:
 
