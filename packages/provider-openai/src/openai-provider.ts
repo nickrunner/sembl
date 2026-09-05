@@ -37,7 +37,8 @@ export class OpenAIProvider implements Provider {
     try {
       completion = await this.client.chat.completions.create({
         model: this.config.model,
-        temperature: this.config.temperature ?? 0,
+        // Only when configured: reasoning models reject sampling parameters.
+        ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
         max_tokens: this.config.maxTokens,
         messages: [
           { role: "system", content: request.systemPrompt },

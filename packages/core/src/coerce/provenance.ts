@@ -4,6 +4,7 @@ import type {
   SchemaBundle,
 } from "../schema/types.js";
 import type { ResolvedIssue } from "./resolve-issues.js";
+import type { CoerceUsage } from "./coerce.js";
 
 /**
  * How well the input supported a value.
@@ -42,6 +43,8 @@ export interface ProvenanceResult<T> {
    * default `"throw"` policy, or when the response validated cleanly.
    */
   issues: ResolvedIssue[];
+  /** Token usage summed over every call the coercion made. */
+  usage: CoerceUsage;
 }
 
 /** Suffix marking the wrapper schema built around a target schema. */
@@ -89,7 +92,7 @@ export interface ProvenanceOptions {
 export function provenanceInstructions(options: ProvenanceOptions = {}): string {
   const labels = options.sourceLabels ?? [];
   if (labels.length < 2) return PROVENANCE_INSTRUCTIONS;
-  return `${PROVENANCE_INSTRUCTIONS}\n- Set \`source\` to the label of the source the value was read from.`;
+  return `${PROVENANCE_INSTRUCTIONS}\n- Always set \`source\` to the label of the source the value was read from. When several agree, name the one quoted in \`evidence\`.`;
 }
 
 /**
@@ -132,7 +135,7 @@ function annotationSchema(
               name: "source",
               description: "The label of the source this value was read from.",
               type: { kind: "enum" as const, values: [...sourceLabels] },
-              required: false,
+              required: true,
             },
           ]
         : []),

@@ -91,7 +91,7 @@ describe("AnthropicProvider", () => {
     expect(Object.keys(inputSchema.properties.address.properties)).toEqual(["city", "zip"]);
   });
 
-  it("defaults temperature to 0 and applies the max-token default", async () => {
+  it("sends no sampling parameters unless configured, and applies the max-token default", async () => {
     const { client, create } = mockClient(toolUseResponse({ city: "Berlin" }));
     const provider = new AnthropicProvider({ model: "claude-sonnet-5", client });
 
@@ -102,8 +102,46 @@ describe("AnthropicProvider", () => {
       schema: addressSchema,
     });
 
-    expect(create.mock.calls[0][0].temperature).toBe(0);
-    expect(create.mock.calls[0][0].max_tokens).toBe(4096);
+    const body = create.mock.calls[0][0];
+    expect("temperature" in body).toBe(false);
+    expect("top_p" in body).toBe(false);
+    expect(body.max_tokens).toBe(4096);
+  });
+
+  it("sends temperature when the caller sets it", async () => {
+    const { client, create } = mockClient(toolUseResponse({ city: "Berlin" }));
+    const provider = new AnthropicProvider({ model: "claude-sonnet-5", client, temperature: 0.2 });
+    await provider.complete({ systemPrompt: "sys", userInput: "in", jsonSchema: {}, schema: addressSchema });
+    expect(create.mock.calls[0][0].temperature).toBe(0.2);
+  });
+
+  it("disables thinking for Claude 5 models, and leaves it unset for older ones", async () => {
+    const five = mockClient(toolUseResponse({ city: "Berlin" }));
+    await new AnthropicProvider({ model: "claude-sonnet-5", client: five.client }).complete({
+      systemPrompt: "sys", userInput: "in", jsonSchema: {}, schema: addressSchema,
+    });
+    expect(five.create.mock.calls[0][0].thinking).toEqual({ type: "disabled" });
+
+    const older = mockClient(toolUseResponse({ city: "Berlin" }));
+    await new AnthropicProvider({ model: "claude-3-5-sonnet-latest", client: older.client }).complete({
+      systemPrompt: "sys", userInput: "in", jsonSchema: {}, schema: addressSchema,
+    });
+    expect("thinking" in older.create.mock.calls[0][0]).toBe(false);
+  });
+
+  it("lets an explicit thinking setting and request overrides win", async () => {
+    const { client, create } = mockClient(toolUseResponse({ city: "Berlin" }));
+    const provider = new AnthropicProvider({
+      model: "claude-sonnet-5",
+      client,
+      thinking: { type: "enabled", budget_tokens: 2048 },
+      requestOverrides: { metadata: { user_id: "u1" }, max_tokens: 999 } as never,
+    });
+    await provider.complete({ systemPrompt: "sys", userInput: "in", jsonSchema: {}, schema: addressSchema });
+    const body = create.mock.calls[0][0];
+    expect(body.thinking).toEqual({ type: "enabled", budget_tokens: 2048 });
+    expect(body.metadata).toEqual({ user_id: "u1" });
+    expect(body.max_tokens).toBe(999);
   });
 
   it("honours an explicit tool name", async () => {

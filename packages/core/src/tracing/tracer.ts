@@ -12,8 +12,16 @@ function generateSpanId(): string {
 export class Tracer implements TraceContext {
   private sinks: TraceSink[];
 
-  constructor(sinks?: TraceSink[]) {
+  private readonly baseAttributes: Record<string, unknown> | undefined;
+
+  /**
+   * `baseAttributes` are merged into every span this tracer opens — how a
+   * batch stamps `itemIndex` on the spans of each item, so a sink can tell
+   * whose `llmCall` it is looking at under concurrency.
+   */
+  constructor(sinks?: TraceSink[], baseAttributes?: Record<string, unknown>) {
     this.sinks = sinks ?? [];
+    this.baseAttributes = baseAttributes;
   }
 
   startSpan(
@@ -26,7 +34,7 @@ export class Tracer implements TraceContext {
       name,
       startTime: Date.now(),
       events: [],
-      attributes,
+      attributes: this.baseAttributes ? { ...this.baseAttributes, ...attributes } : attributes,
       parentId: parent?.id,
     };
   }

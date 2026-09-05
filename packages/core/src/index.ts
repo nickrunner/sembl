@@ -56,10 +56,20 @@ export type {
 export {
   coerce,
   partialCoerce,
+  coerceDetailed,
+  partialCoerceDetailed,
   coerceWithProvenance,
   partialCoerceWithProvenance,
+  primeCache,
 } from "./coerce/coerce.js";
-export type { CoerceOptions, PreprocessSource } from "./coerce/coerce.js";
+export type {
+  CoerceOptions,
+  PreprocessSource,
+  CoerceDetails,
+  CoerceUsage,
+  PrimedPrefix,
+  PrimeCacheOptions,
+} from "./coerce/coerce.js";
 
 // Batches
 export { coerceMany } from "./coerce/coerce-many.js";

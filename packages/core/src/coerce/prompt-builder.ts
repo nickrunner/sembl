@@ -224,6 +224,8 @@ export function buildPrompt(
   lines.push("Instructions:");
   lines.push("- Extract values from the sources that match the schema fields.");
   lines.push("- Use null for optional fields that cannot be determined from the input.");
+  lines.push("- A value the input states is never omitted because it looks like a default: return 1, 0, false or an empty list when that is what the input says.");
+  lines.push("- Never return an empty object when the input states values for any field.");
   lines.push("- Required fields must always have a valid, non-null value.");
   lines.push("- Interpret the user's input semantically — infer meaning, don't just pattern match.");
   lines.push("- Respect every stated limit exactly; truncate or drop lower-priority content to stay within it.");

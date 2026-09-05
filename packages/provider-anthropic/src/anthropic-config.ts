@@ -47,6 +47,23 @@ export interface AnthropicProviderConfig extends ProviderConfig {
    */
   cacheTtl?: "5m" | "1h";
   /**
+   * Extended-thinking setting sent with every call.
+   *
+   * Claude 5 models turn adaptive thinking on by default, and a forced tool
+   * call is rejected while it is on, so for those models the provider sends
+   * `{ type: "disabled" }` unless this is set. Older models reject the
+   * parameter outright, so nothing is sent for them by default. Set it
+   * explicitly to override either behaviour.
+   */
+  thinking?: Anthropic.ThinkingConfigParam;
+  /**
+   * Fields merged into the request body last, after everything the provider
+   * builds. The escape hatch for the next model-specific parameter, so a
+   * caller does not have to wait for a library release — or wrap the client
+   * — to send it.
+   */
+  requestOverrides?: Partial<Anthropic.MessageCreateParamsNonStreaming>;
+  /**
    * How many times the SDK retries a failed call before giving up. The SDK
    * retries connection errors, 408/409/429 and 5xx with exponential backoff
    * and honours `retry-after`, so there is nothing to hand-roll here.
@@ -68,6 +85,14 @@ export interface AnthropicProviderConfig extends ProviderConfig {
 
 /** Anthropic requires an explicit output budget; this is used when none is set. */
 export const DEFAULT_MAX_TOKENS = 4096;
+
+/**
+ * Whether a model id names a Claude 5 model. Those enable adaptive thinking
+ * by default, which a forced tool call cannot be combined with.
+ */
+export function isClaude5Model(model: string): boolean {
+  return /claude-(?:fable|opus|sonnet|haiku)-5(?:[.-]|$)/i.test(model);
+}
 
 /** Matches the SDK's own default; stated here so it survives an SDK change. */
 export const DEFAULT_MAX_RETRIES = 2;
