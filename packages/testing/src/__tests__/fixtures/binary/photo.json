@@ -1,0 +1,4 @@
+{
+  "input": { "image": "photo.png", "label": "Listing photo" },
+  "expected": { "name": "Sea Cabin" }
+}
