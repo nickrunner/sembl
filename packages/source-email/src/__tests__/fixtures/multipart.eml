@@ -1,0 +1,52 @@
+From: Alice Nguyen <alice@seacabin.example>
+To: Dana Ruiz <dana@managers.example>
+Date: Thu, 4 Sep 2025 16:30:00 +0200
+Subject: Sea Cabin handover pack
+Message-ID: <multipart-1@seacabin.example>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="outer"
+
+--outer
+Content-Type: multipart/alternative; boundary="inner"
+
+--inner
+Content-Type: text/plain; charset=utf-8
+
+Dana,
+
+Attached are the house notes and the floor plan. The inline photo is the deck.
+
+Alice
+--inner
+Content-Type: text/html; charset=utf-8
+
+<p>Dana,</p><p>Attached are the house notes and the floor plan. The inline photo is the deck.</p><p>Alice</p>
+--inner--
+--outer
+Content-Type: text/plain; charset=utf-8; name="house-notes.txt"
+Content-Disposition: attachment; filename="house-notes.txt"
+Content-Transfer-Encoding: base64
+
+V2lmaTogU2VhQ2FiaW4gLyBwYXNzd29yZCBzYWx0d2F0ZXIKUGFya2luZzogdHdvIGNhcnMg
+YnkgdGhlIGJvYXRob3VzZQpQZXRzOiB3ZWxjb21lLCBkb2dzIG9mZiB0aGUgYmVkcwo=
+--outer
+Content-Type: text/html; charset=utf-8; name="checklist.html"
+Content-Disposition: attachment; filename="checklist.html"
+
+<html><head><title>Turnover checklist</title></head><body><ul><li>Drain the hot tub</li><li>Restock firewood</li></ul></body></html>
+--outer
+Content-Type: application/pdf; name="floor-plan.pdf"
+Content-Disposition: attachment; filename="floor-plan.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290
+IDEgMCBSPj4KJSVFT0YK
+--outer
+Content-Type: image/png; name="deck.png"
+Content-Disposition: inline; filename="deck.png"
+Content-ID: <deck@seacabin.example>
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA
+60e6kgAAAABJRU5ErkJggg==
+--outer--

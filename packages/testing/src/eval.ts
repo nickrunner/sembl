@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import {
   coerce,
   partialCoerce,
@@ -10,7 +10,9 @@ import {
 import type {
   CoerceInput,
   CoerceOptions,
+  DocumentMediaType,
   FieldProvenance,
+  ImageMediaType,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -123,11 +125,61 @@ interface FileInput {
   label?: string;
 }
 
+/** `{ image: "photo.jpg" }` or `{ document: "scan.pdf" }`: a path beside the fixture, or a URL. */
+interface BinaryInput {
+  image?: string;
+  document?: string;
+  label?: string;
+}
+
 function isFileInput(value: unknown): value is FileInput {
   return typeof value === "object" && value !== null && typeof (value as FileInput).file === "string";
 }
 
-/** Resolve `{ file, label }` inputs against the fixture's own directory. */
+function isBinaryInput(value: unknown): value is BinaryInput {
+  if (typeof value !== "object" || value === null) return false;
+  const { image, document } = value as BinaryInput;
+  return typeof image === "string" || typeof document === "string";
+}
+
+const IMAGE_EXTENSIONS: Record<string, ImageMediaType> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
+const DOCUMENT_EXTENSIONS: Record<string, DocumentMediaType> = { ".pdf": "application/pdf" };
+
+function isUrl(path: string): boolean {
+  return /^https?:\/\//i.test(path);
+}
+
+/**
+ * Turn a fixture's `{ image }` / `{ document }` into a source: a URL is
+ * passed through for the provider to fetch, anything else is read from
+ * beside the fixture with its media type taken from the extension.
+ */
+function resolveBinaryInput(value: BinaryInput, baseDir: string): Source {
+  const label = value.label ? { label: value.label } : {};
+  if (typeof value.image === "string") {
+    if (isUrl(value.image)) return { ...label, image: { url: value.image } };
+    const mediaType = IMAGE_EXTENSIONS[extname(value.image).toLowerCase()];
+    if (!mediaType) {
+      throw new Error(`Unknown image type for "${value.image}" (expected ${Object.keys(IMAGE_EXTENSIONS).join(", ")})`);
+    }
+    return { ...label, image: { data: new Uint8Array(readFileSync(resolve(baseDir, value.image))), mediaType } };
+  }
+  const document = value.document as string;
+  if (isUrl(document)) return { ...label, document: { url: document } };
+  const mediaType = DOCUMENT_EXTENSIONS[extname(document).toLowerCase()];
+  if (!mediaType) {
+    throw new Error(`Unknown document type for "${document}" (expected ${Object.keys(DOCUMENT_EXTENSIONS).join(", ")})`);
+  }
+  return { ...label, document: { data: new Uint8Array(readFileSync(resolve(baseDir, document))), mediaType } };
+}
+
+/** Resolve `{ file, label }`, `{ image }` and `{ document }` inputs against the fixture's own directory. */
 function resolveInput(input: unknown, baseDir: string): CoerceInput {
   const one = (value: unknown): Source | string => {
     if (typeof value === "string") return value;
@@ -135,6 +187,7 @@ function resolveInput(input: unknown, baseDir: string): CoerceInput {
       const text = readFileSync(resolve(baseDir, value.file), "utf8");
       return value.label ? { label: value.label, text } : { text };
     }
+    if (isBinaryInput(value)) return resolveBinaryInput(value, baseDir);
     return value as Source;
   };
   if (Array.isArray(input)) {
@@ -150,7 +203,10 @@ function resolveInput(input: unknown, baseDir: string): CoerceInput {
  * Load fixtures from a directory: every `*.json` file is either one fixture
  * or an array of them. An input may be `{ "file": "page.html", "label": … }`
  * to pull text from a sibling file, which keeps large scraped pages out of
- * the JSON.
+ * the JSON, or `{ "image": "photo.jpg" }` / `{ "document": "scan.pdf" }` to
+ * read a sibling file as an image or a document, its media type taken from
+ * the extension. Either may be a URL instead, passed through for the
+ * provider to fetch.
  */
 export function loadFixtures(dir: string): EvalFixture[] {
   const root = resolve(dir);
@@ -344,9 +400,13 @@ const context = new AsyncLocalStorage<ItemContext>();
 /** Credits each call's usage to whichever fixture is running it. */
 class MeteredProvider implements Provider {
   readonly supportsHistory: boolean;
+  readonly supportsImages: boolean;
+  readonly supportsDocuments: boolean;
 
   constructor(private readonly inner: Provider) {
     this.supportsHistory = inner.supportsHistory === true;
+    this.supportsImages = inner.supportsImages === true;
+    this.supportsDocuments = inner.supportsDocuments === true;
   }
 
   async complete(request: ProviderRequest): Promise<ProviderResponse> {
