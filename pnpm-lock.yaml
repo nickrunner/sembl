@@ -78,6 +78,9 @@ importers:
       '@sembl/provider-openai':
         specifier: workspace:*
         version: link:../provider-openai
+      '@sembl/source-feed':
+        specifier: workspace:*
+        version: link:../source-feed
       '@sembl/source-html':
         specifier: workspace:*
         version: link:../source-html
@@ -123,6 +126,25 @@ importers:
       openai:
         specifier: ^4.0.0
         version: 4.104.0
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
+  packages/source-feed:
+    dependencies:
+      '@sembl/core':
+        specifier: workspace:*
+        version: link:../core
+      '@sembl/source-html':
+        specifier: workspace:*
+        version: link:../source-html
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
