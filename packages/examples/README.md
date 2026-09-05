@@ -1,6 +1,6 @@
 # @sembl/examples
 
-Thirteen runnable examples, one per feature, against a fictional set of rental
+Fourteen runnable examples, one per feature, against a fictional set of rental
 listings in `data/`.
 
 ```sh
@@ -31,6 +31,7 @@ only calls whose prompt, schema or input changed go live again.
 | 11 | `RecordingProvider` / `ReplayProvider` with a miss                            |
 | 12 | The eval harness over `evals/listing`, with deltas against the previous run   |
 | 13 | `instructions`: a per-call hint the schema can't carry, changing the result   |
+| 14 | An image source: a listing read from a photo, provenance pointing into it, a text-only provider refused |
 
 `pnpm --filter @sembl/examples eval` runs example 12's fixtures through the
 `sembl eval` CLI instead, using `src/support/eval-config.ts` as the config.

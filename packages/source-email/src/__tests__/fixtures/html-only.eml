@@ -1,0 +1,24 @@
+From: Coastal Stays <news@coastal-stays.example>
+To: bob@example.com
+Date: Tue, 2 Sep 2025 09:15:00 -0700
+Subject: Your booking at Sea Cabin is confirmed
+Message-ID: <html-1@coastal-stays.example>
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><head><style>.x{color:red}</style></head><body>
+<span style=3D"display:none;max-height:0">Preheader teaser text&zwnj;&zwnj;=
+&zwnj;</span>
+<div class=3D"header"><img src=3D"https://t.coastal-stays.example/open?id=3D=
+abc" width=3D"1" height=3D"1" alt=3D""></div>
+<h1>Booking confirmed</h1>
+<p>Sea Cabin, 12&ndash;15 September. Sleeps 6, <b>$250</b> a night.</p>
+<ul><li>Check-in from 4pm</li><li>Sauna and hot tub</li></ul>
+<p><a href=3D"https://t.coastal-stays.example/click?u=3D1&amp;id=3D9">View =
+your booking</a></p>
+<blockquote class=3D"gmail_quote">
+<p>On Mon, 1 Sep 2025 Bob wrote:</p>
+<p>Can I book 12 to 15 September?</p>
+</blockquote>
+</body></html>

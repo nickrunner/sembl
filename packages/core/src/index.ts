@@ -81,18 +81,49 @@ export { coerceMany } from "./coerce/coerce-many.js";
 export type { CoerceManyOptions, CoerceManyResult, RetryOptions } from "./coerce/coerce-many.js";
 
 // Input budgeting
-export { budgetSources } from "./coerce/budget.js";
-export type { TruncatePolicy, TruncationRecord, BudgetResult } from "./coerce/budget.js";
+export { budgetSources, capBinarySources } from "./coerce/budget.js";
+export type {
+  TruncatePolicy,
+  TruncationRecord,
+  BudgetResult,
+  BinaryLimits,
+  DroppedSourceRecord,
+  CapResult,
+} from "./coerce/budget.js";
 
 // Sources
 export {
   toSources,
   renderSources,
+  renderContent,
   isSource,
+  isTextSource,
+  isImageSource,
+  isDocumentSource,
+  isBinarySource,
   isCoerceInput,
+  sourceKind,
+  sourceKinds,
+  sourceInstructions,
+  toBase64,
   SOURCE_INSTRUCTIONS,
+  BINARY_SOURCE_INSTRUCTIONS,
+  IMAGE_MEDIA_TYPES,
+  DOCUMENT_MEDIA_TYPES,
 } from "./coerce/sources.js";
-export type { Source, CoerceInput } from "./coerce/sources.js";
+export type {
+  Source,
+  TextSource,
+  ImageSource,
+  DocumentSource,
+  BinarySource,
+  BinaryData,
+  ImageMediaType,
+  DocumentMediaType,
+  SourceKind,
+  ContentBlock,
+  CoerceInput,
+} from "./coerce/sources.js";
 
 // Provenance
 export {
@@ -100,6 +131,7 @@ export {
   splitProvenance,
   provenanceInstructions,
   PROVENANCE_INSTRUCTIONS,
+  BINARY_PROVENANCE_INSTRUCTIONS,
 } from "./coerce/provenance.js";
 export type {
   FieldConfidence,

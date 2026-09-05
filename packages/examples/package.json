@@ -15,8 +15,10 @@
     "@sembl/core": "workspace:*",
     "@sembl/provider-anthropic": "workspace:*",
     "@sembl/provider-openai": "workspace:*",
+    "@sembl/source-email": "workspace:*",
     "@sembl/source-html": "workspace:*",
     "@sembl/source-pdf": "workspace:*",
+    "@sembl/source-table": "workspace:*",
     "@sembl/testing": "workspace:*",
     "openai": "^4.0.0"
   },

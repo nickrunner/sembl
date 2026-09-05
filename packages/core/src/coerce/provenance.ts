@@ -5,6 +5,7 @@ import type {
 } from "../schema/types.js";
 import type { ResolvedIssue } from "./resolve-issues.js";
 import type { CoerceUsage } from "./coerce.js";
+import type { SourceKind } from "./sources.js";
 
 /**
  * How well the input supported a value.
@@ -20,8 +21,10 @@ export interface FieldProvenance {
   /** How well the input supported this value. */
   confidence: FieldConfidence;
   /**
-   * The span of input the value was read from, quoted. Absent when the value
-   * was inferred rather than read — which is itself the signal worth showing.
+   * The span of input the value was read from, quoted — or, for a value read
+   * from an image, a short description of where in the image it appears.
+   * Absent when the value was inferred rather than read — which is itself
+   * the signal worth showing.
    */
   evidence?: string;
   /**
@@ -76,8 +79,36 @@ export const PROVENANCE_INSTRUCTIONS = [
   "  normal, and marking the guess honestly is more useful than looking sure.",
 ].join("\n");
 
+/**
+ * The evidence rule for values read from an image or a document, added to
+ * {@link PROVENANCE_INSTRUCTIONS} only when a run has such a source: a
+ * photo has nothing to quote, so the evidence says where to look instead.
+ */
+export const BINARY_PROVENANCE_INSTRUCTIONS = [
+  "- For a value read from an image, `evidence` is a short description of where",
+  '  in the image it appears — "the price on the sign above the door" — rather',
+  "  than a quote. For a value read from a document, quote the page as usual",
+  "  and lead with the page number when there are several.",
+].join("\n");
+
+/** The description of the `evidence` field in the annotation schema. */
+const EVIDENCE_DESCRIPTION =
+  "The shortest quote from the input this value was read from. Omit when the value was inferred rather than read.";
+const BINARY_EVIDENCE_DESCRIPTION =
+  "The shortest quote from the input this value was read from, or for an image a short description of where in it the value appears. Omit when the value was inferred rather than read.";
+
+function hasBinary(kinds: readonly SourceKind[] | undefined): boolean {
+  return kinds !== undefined && kinds.some((kind) => kind !== "text");
+}
+
 /** Options for {@link toProvenanceSchema} and {@link provenanceInstructions}. */
 export interface ProvenanceOptions {
+  /**
+   * The kinds of source the coercion was given. When an image or a document
+   * is among them, the evidence rule and the annotation schema say what
+   * evidence means for a value with nothing to quote.
+   */
+  sourceKinds?: readonly SourceKind[];
   /**
    * Labels of the sources the coercion was given, when there are several.
    * Each annotation then also asks which source the value was read from.
@@ -126,6 +157,9 @@ export function provenanceInstructions(options: ProvenanceOptions = {}): string 
       `- Only these fields are wrapped as objects, with the extracted value in \`value\`: ${options.fields.join(", ")}. Every other field is a plain value.`,
     );
   }
+  if (hasBinary(options.sourceKinds)) {
+    text += `\n${BINARY_PROVENANCE_INSTRUCTIONS}`;
+  }
   if (labels.length >= 2) {
     text += "\n- Always set `source` to the label of the source the value was read from. When several agree, name the one quoted in `evidence`.";
   }
@@ -139,6 +173,7 @@ function annotationSchema(
   parentId: string,
   field: FieldDescriptor,
   sourceLabels: readonly string[],
+  binary: boolean,
 ): RuntimeSchema {
   const valueField: FieldDescriptor = {
     name: "value",
@@ -161,8 +196,7 @@ function annotationSchema(
       },
       {
         name: "evidence",
-        description:
-          "The shortest quote from the input this value was read from. Omit when the value was inferred rather than read.",
+        description: binary ? BINARY_EVIDENCE_DESCRIPTION : EVIDENCE_DESCRIPTION,
         type: { kind: "string" },
         required: false,
       },
@@ -200,6 +234,7 @@ export function toProvenanceSchema(
   const schemas: Record<string, RuntimeSchema> = { ...(bundle?.schemas ?? {}) };
   const fields: FieldDescriptor[] = [];
   const sourceLabels = options.sourceLabels ?? [];
+  const binary = hasBinary(options.sourceKinds);
   const wrapped = provenanceFieldNames(schema, options.fields);
 
   for (const field of schema.fields) {
@@ -207,7 +242,7 @@ export function toProvenanceSchema(
       fields.push(field);
       continue;
     }
-    const annotation = annotationSchema(schema.id, field, sourceLabels);
+    const annotation = annotationSchema(schema.id, field, sourceLabels, binary);
     schemas[annotation.id] = annotation;
     fields.push({
       name: field.name,

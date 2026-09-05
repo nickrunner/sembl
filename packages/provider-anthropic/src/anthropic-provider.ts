@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Provider, ProviderRequest, ProviderResponse, ProviderTurn } from "@sembl/core";
+import type { ContentBlock, Provider, ProviderRequest, ProviderResponse, ProviderTurn } from "@sembl/core";
+import { toBase64 } from "@sembl/core";
 import type { AnthropicProviderConfig } from "./anthropic-config.js";
 import {
   DEFAULT_MAX_RETRIES,
@@ -39,6 +40,41 @@ function renderHistory(history: readonly ProviderTurn[], toolName: string): Anth
   return messages;
 }
 
+/**
+ * The first user turn. A text-only request goes as a plain string, exactly
+ * as before images existed; one with blocks goes as a content array, each
+ * image or document as the block the API defines for it, inline as base64
+ * or by URL for the API to fetch.
+ */
+function renderInput(request: ProviderRequest): string | Anthropic.ContentBlockParam[] {
+  if (!request.content) return request.userInput;
+  return request.content.map(toContentBlock);
+}
+
+function toContentBlock(block: ContentBlock): Anthropic.ContentBlockParam {
+  switch (block.type) {
+    case "text":
+      return { type: "text", text: block.text };
+    case "image":
+      return {
+        type: "image",
+        source:
+          "url" in block.source
+            ? { type: "url", url: block.source.url }
+            : { type: "base64", media_type: block.source.mediaType, data: toBase64(block.source.data) },
+      };
+    case "document":
+      return {
+        type: "document",
+        source:
+          "url" in block.source
+            ? { type: "url", url: block.source.url }
+            : { type: "base64", media_type: block.source.mediaType, data: toBase64(block.source.data) },
+        ...(block.label !== undefined ? { title: block.label } : {}),
+      };
+  }
+}
+
 /** Per-call overrides handed to the SDK alongside the request body. */
 interface CallOptions {
   maxRetries?: number;
@@ -60,6 +96,10 @@ interface CallOptions {
 export class AnthropicProvider implements Provider {
   /** Repair turns are rendered as a tool call and its (failed) result. */
   readonly supportsHistory = true;
+  /** Images go as `image` blocks, inline or by URL. */
+  readonly supportsImages = true;
+  /** PDFs go as `document` blocks, inline or by URL. */
+  readonly supportsDocuments = true;
 
   private client: Pick<Anthropic, "messages">;
   private config: AnthropicProviderConfig;
@@ -108,7 +148,7 @@ export class AnthropicProvider implements Provider {
         ...(thinking ? { thinking } : {}),
         system: this.buildSystem(request.systemPrompt),
         messages: [
-          { role: "user", content: request.userInput },
+          { role: "user", content: renderInput(request) },
           ...renderHistory(request.history ?? [], toolName),
         ],
         tools: [

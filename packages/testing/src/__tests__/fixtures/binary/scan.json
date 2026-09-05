@@ -1,0 +1,4 @@
+{
+  "input": [{ "image": "https://example.test/photo.jpg", "label": "Photo" }, { "document": "scan.pdf", "label": "Scan" }],
+  "expected": { "name": "Sea Cabin" }
+}

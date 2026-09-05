@@ -5,8 +5,9 @@ export {
   replayOrRecord,
   recordingKey,
   recordingPath,
+  describeBlock,
 } from "./replay.js";
-export type { Recording, ReplayOptions } from "./replay.js";
+export type { Recording, RecordedBlock, ReplayOptions } from "./replay.js";
 
 export {
   runEval,
