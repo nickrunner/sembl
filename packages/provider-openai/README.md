@@ -25,6 +25,15 @@ SemblConfig.configure({
 });
 ```
 
+## Images and documents
+
+The provider declares `supportsImages` and `supportsDocuments`. An image
+source goes as an `image_url` content part — a data URL for inline bytes,
+the URL itself otherwise — and a PDF as a `file` part with the bytes inline
+as a data URL. Chat completions have no URL form for files, so a document
+given as `{ url }` is refused with a `RangeError` before any call; fetch it
+and pass `{ data, mediaType }` instead.
+
 ## Options
 
 | Option        | Default              | Notes                                             |

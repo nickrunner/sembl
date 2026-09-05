@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import { decodeEntities, extractJsonLd, extractMeta, htmlToText } from "./html-to-text.js";
 
 export { htmlToText, extractJsonLd, extractMeta, decodeEntities } from "./html-to-text.js";
@@ -56,11 +56,11 @@ export function pageToText(html: string, options: HtmlSourceOptions = {}): strin
  * page loses body text, never its JSON-LD. Pass the result straight to a
  * coercion. Only the sources that have content are returned.
  */
-export function htmlSources(html: string, label = "Page", options: HtmlSourceOptions = {}): Source[] {
+export function htmlSources(html: string, label = "Page", options: HtmlSourceOptions = {}): TextSource[] {
   const { body = true } = options;
   const structured = pageToText(html, { ...options, body: false });
   const text = body ? pageToText(html, { meta: false, jsonLd: false, body: true }) : "";
-  const sources: Source[] = [];
+  const sources: TextSource[] = [];
   if (structured) sources.push({ label: `${label} (structured data)`, text: structured });
   if (text) sources.push({ label, text });
   return sources;
@@ -194,7 +194,7 @@ export function extractImages(html: string, options: ExtractImagesOptions = {}):
  * to `sembl()`. For a page that may blow the input budget, prefer
  * {@link htmlSources}, which keeps the structured data in its own source.
  */
-export function htmlSource(html: string, label?: string, options?: HtmlSourceOptions): Source {
+export function htmlSource(html: string, label?: string, options?: HtmlSourceOptions): TextSource {
   const text = pageToText(html, options);
   return label ? { label, text } : { text };
 }
@@ -208,6 +208,6 @@ export function htmlSource(html: string, label?: string, options?: HtmlSourceOpt
  * await coerce(pages, { provider, schema, preprocess: preprocessHtml() });
  * ```
  */
-export function preprocessHtml(options?: HtmlSourceOptions): (source: Source) => Source {
+export function preprocessHtml(options?: HtmlSourceOptions): (source: TextSource) => TextSource {
   return (source) => ({ ...source, text: pageToText(source.text, options) });
 }
