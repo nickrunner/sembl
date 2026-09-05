@@ -30,7 +30,7 @@ export function buildRepairInput(
   rejected: Record<string, unknown>,
   issues: FieldValidationIssue[],
 ): string {
-  const lines = [
+  return [
     originalInput,
     "",
     "---",
@@ -39,14 +39,20 @@ export function buildRepairInput(
     "",
     JSON.stringify(rejected, null, 2),
     "",
-    "It was rejected because:",
-    "",
-  ];
+    buildRepairCorrection(issues),
+  ].join("\n");
+}
 
+/**
+ * The correction alone — what was wrong and what to do — for a provider that
+ * carries the rejected output as a real assistant turn, so the model does not
+ * need it quoted back.
+ */
+export function buildRepairCorrection(issues: FieldValidationIssue[]): string {
+  const lines = ["The output was rejected because:", ""];
   for (const issue of issues) {
     lines.push(`- ${issue.path}: ${issue.message} (received: ${renderReceived(issue.received)})`);
   }
-
   lines.push(
     "",
     "Return a corrected object addressing every point above. Keep the values " +
@@ -54,6 +60,5 @@ export function buildRepairInput(
       "input genuinely does not support a value, leave the field out rather " +
       "than inventing one.",
   );
-
   return lines.join("\n");
 }

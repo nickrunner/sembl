@@ -8,6 +8,8 @@ import {
   htmlToText,
   pageToText,
   preprocessHtml,
+  htmlSources,
+  extractImages,
 } from "../index.js";
 
 const page = `<!doctype html>
@@ -112,5 +114,67 @@ describe("htmlSource and preprocessHtml", () => {
   it("converts a source in place as a preprocess hook", () => {
     const hook = preprocessHtml({ meta: false });
     expect(hook({ label: "A", text: "<p>Hi</p>" })).toEqual({ label: "A", text: "Page text:\nHi" });
+  });
+});
+
+describe("htmlSources", () => {
+  it("splits a page into a structured source and a text source", () => {
+    const sources = htmlSources(page, "Listing");
+    expect(sources.map((s) => s.label)).toEqual(["Listing (structured data)", "Listing"]);
+    expect(sources[0].text).toContain('"@type":"LodgingBusiness"');
+    expect(sources[0].text).not.toContain("Page text:");
+    expect(sources[1].text).toContain("Sea Cabin");
+    expect(sources[1].text).not.toContain("JSON-LD");
+  });
+
+  it("keeps the structured source whole under a tight total budget", () => {
+    const longPage = page.replace("</body>", `<p>${"filler ".repeat(5000)}</p></body>`);
+    const [structured, text] = budgetSources(htmlSources(longPage, "Listing"), 1500).sources;
+    expect(structured.text).toContain('"@type":"LodgingBusiness"');
+    expect(structured.text).not.toContain("characters omitted");
+    expect(text.text).toContain("characters omitted");
+  });
+
+  it("returns only the sources that have content", () => {
+    expect(htmlSources("<p>Just text</p>").map((s) => s.label)).toEqual(["Page"]);
+  });
+});
+
+describe("extractImages", () => {
+  const gallery = `<html><head>
+    <meta property="og:image" content="https://cdn.example.com/hero.jpg">
+    <script type="application/ld+json">{"@type":"LodgingBusiness","image":["https://cdn.example.com/ld1.jpg",{"@type":"ImageObject","url":"https://cdn.example.com/ld2.jpg"}]}</script>
+    </head><body>
+    <img src="/logo.png" width="120" height="40">
+    <img src="https://cdn.example.com/hero.jpg" alt="dup of og">
+    <img src="/photos/room.jpg" alt="The bedroom" width="1200" height="800">
+    <img data-src="/photos/lazy.jpg" src="data:image/gif;base64,R0lGOD" alt="lazy">
+    <img srcset="/photos/deck-400.jpg 400w, /photos/deck-1600.jpg 1600w" alt="deck">
+    <img src="https://t.example.com/pixel.gif" width="1" height="1">
+    <img src="/icons/wifi.svg">
+    <img src="/photos/tiny.jpg" width="50" height="50">
+    </body></html>`;
+
+  it("collects meta, JSON-LD and img sources in order, filtering junk and duplicates", () => {
+    const images = extractImages(gallery, { baseUrl: "https://example.com/listing/1" });
+    expect(images.map((i) => i.url)).toEqual([
+      "https://cdn.example.com/hero.jpg",
+      "https://cdn.example.com/ld1.jpg",
+      "https://cdn.example.com/ld2.jpg",
+      "https://example.com/photos/room.jpg",
+      "https://example.com/photos/lazy.jpg",
+      "https://example.com/photos/deck-1600.jpg",
+    ]);
+    expect(images[3]).toEqual({ url: "https://example.com/photos/room.jpg", alt: "The bedroom", width: 1200, height: 800 });
+  });
+
+  it("drops relative URLs without a base and honours max", () => {
+    const images = extractImages(gallery);
+    expect(images.map((i) => i.url)).toEqual([
+      "https://cdn.example.com/hero.jpg",
+      "https://cdn.example.com/ld1.jpg",
+      "https://cdn.example.com/ld2.jpg",
+    ]);
+    expect(extractImages(gallery, { baseUrl: "https://example.com", max: 2 })).toHaveLength(2);
   });
 });

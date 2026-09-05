@@ -1,6 +1,6 @@
 import type { RuntimeSchema, SchemaBundle } from "../schema/types.js";
 import type { EnumResolver, ResolvedEnums } from "../schema/enum-source.js";
-import type { Provider, ProviderUsage } from "../provider/types.js";
+import type { Provider, ProviderTurn, ProviderUsage } from "../provider/types.js";
 import type { TraceSink, TraceSpan } from "../tracing/types.js";
 import { CoerceError } from "../errors/coerce-error.js";
 import { EnumResolutionError } from "../errors/enum-resolution-error.js";
@@ -9,7 +9,7 @@ import { resolveEnumSources } from "../schema/resolve-enum-sources.js";
 import { bundleOf } from "../schema/define.js";
 import type { FieldValidationIssue } from "../errors/coerce-error.js";
 import { buildPrompt, normalizeInstructions } from "./prompt-builder.js";
-import { buildRepairInput } from "./repair.js";
+import { buildRepairInput, buildRepairCorrection } from "./repair.js";
 import {
   provenanceInstructions,
   splitProvenance,
@@ -391,12 +391,25 @@ export async function runCoercion(
     let issues: FieldValidationIssue[] = [];
     let run: CoercionRun = { data: {}, provenance: {}, issues: [], usage };
     let emptyRetries = 0;
+    // A provider that renders turns gets the conversation as it happened:
+    // the model's own output as its own turn, the correction as ours. One
+    // that does not gets the same content folded into the user input.
+    const multiTurn = provider.supportsHistory === true;
+    const history: ProviderTurn[] = [];
+    const followUp = (rejected: Record<string, unknown>, text: string, folded: string) => {
+      if (multiTurn) {
+        history.push({ role: "assistant", data: rejected }, { role: "user", text });
+      } else {
+        userInput = folded;
+      }
+    };
 
     for (let attempt = 0; attempt <= maxRepairAttempts; attempt++) {
-      const llmSpan = tracer.startSpan("llmCall", { attempt }, rootSpan);
+      const llmSpan = tracer.startSpan("llmCall", { attempt, turns: history.length }, rootSpan);
       const response = await provider.complete({
         systemPrompt,
         userInput,
+        ...(history.length > 0 ? { history: [...history] } : {}),
         jsonSchema,
         schema: prepared.schema,
         bundle: prepared.bundle,
@@ -416,7 +429,7 @@ export async function runCoercion(
       if (hasInput && emptyRetries < retryOnEmpty && isEmptyResult(run.data)) {
         emptyRetries += 1;
         tracer.addEvent(rootSpan, "emptyRetry", { retry: emptyRetries });
-        userInput = `${renderedInput}\n\n---\n\n${EMPTY_RETRY_NOTE}`;
+        followUp(response.data, EMPTY_RETRY_NOTE, `${renderedInput}\n\n---\n\n${EMPTY_RETRY_NOTE}`);
         attempt -= 1;
         continue;
       }
@@ -469,9 +482,14 @@ export async function runCoercion(
           issueCount: issues.length,
           paths: issues.map((issue) => issue.path),
         });
-        // Feed back the unwrapped data: it is what the issues refer to, and
-        // the schema still forces the wrapper shape on the way back.
-        userInput = buildRepairInput(renderedInput, run.data, issues);
+        // The rejected turn is the raw response, wrapper and all, so a
+        // provider replays exactly what the model said; the folded text uses
+        // the unwrapped data, which is what the issues refer to.
+        followUp(
+          response.data,
+          buildRepairCorrection(issues),
+          buildRepairInput(renderedInput, run.data, issues),
+        );
       }
     }
 

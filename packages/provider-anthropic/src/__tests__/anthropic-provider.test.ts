@@ -205,3 +205,34 @@ describe("AnthropicProvider", () => {
     ).rejects.toThrow("no \"extract_Address\" tool call");
   });
 });
+
+describe("AnthropicProvider history", () => {
+  it("renders repair turns as a tool call and an error tool result", async () => {
+    const { client, create } = mockClient(toolUseResponse({ city: "Berlin" }));
+    const provider = new AnthropicProvider({ model: "claude-sonnet-5", client });
+    expect(provider.supportsHistory).toBe(true);
+
+    await provider.complete({
+      systemPrompt: "sys",
+      userInput: "in",
+      jsonSchema: {},
+      schema: addressSchema,
+      history: [
+        { role: "assistant", data: { city: 42 } },
+        { role: "user", text: "city must be a string" },
+      ],
+    });
+
+    const messages = create.mock.calls[0][0].messages;
+    expect(messages).toHaveLength(3);
+    expect(messages[0]).toEqual({ role: "user", content: "in" });
+    expect(messages[1]).toEqual({
+      role: "assistant",
+      content: [{ type: "tool_use", id: "toolu_sembl_0", name: "extract_Address", input: { city: 42 } }],
+    });
+    expect(messages[2]).toEqual({
+      role: "user",
+      content: [{ type: "tool_result", tool_use_id: "toolu_sembl_0", content: "city must be a string", is_error: true }],
+    });
+  });
+});

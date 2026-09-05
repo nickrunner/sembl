@@ -12,6 +12,7 @@ export interface Recording {
     systemPrompt: string;
     userInput: string;
     jsonSchema: Record<string, unknown>;
+    history?: ProviderRequest["history"];
   };
   response: ProviderResponse;
   recordedAt: string;
@@ -36,6 +37,8 @@ export function recordingKey(request: ProviderRequest): string {
     systemPrompt: request.systemPrompt,
     userInput: request.userInput,
     jsonSchema: request.jsonSchema,
+    // A repair call shares everything above with the call it repairs.
+    ...(request.history && request.history.length > 0 ? { history: request.history } : {}),
   });
   return createHash("sha256").update(material).digest("hex").slice(0, 24);
 }
@@ -74,10 +77,13 @@ export class ReplayMissError extends Error {
  * description or the input produces a new recording rather than a stale hit.
  */
 export class RecordingProvider implements Provider {
+  readonly supportsHistory: boolean;
+
   constructor(
     private readonly inner: Provider,
     private readonly dir: string,
   ) {
+    this.supportsHistory = inner.supportsHistory === true;
     mkdirSync(dir, { recursive: true });
   }
 
@@ -90,6 +96,7 @@ export class RecordingProvider implements Provider {
         systemPrompt: request.systemPrompt,
         userInput: request.userInput,
         jsonSchema: request.jsonSchema,
+        ...(request.history ? { history: request.history } : {}),
       },
       response,
       recordedAt: new Date().toISOString(),
@@ -117,12 +124,19 @@ export interface ReplayOptions {
  */
 export class ReplayProvider implements Provider {
   private readonly recorder: RecordingProvider | undefined;
+  /**
+   * Follows the fallback when there is one. A strict replay claims support
+   * so that a recorded multi-turn repair is asked for the same way it was
+   * recorded; the recordings decide whether it is answered.
+   */
+  readonly supportsHistory: boolean;
 
   constructor(
     private readonly dir: string,
     options: ReplayOptions = {},
   ) {
     this.recorder = options.fallback ? new RecordingProvider(options.fallback, dir) : undefined;
+    this.supportsHistory = options.fallback ? options.fallback.supportsHistory === true : true;
   }
 
   async complete(request: ProviderRequest): Promise<ProviderResponse> {

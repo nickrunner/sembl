@@ -343,7 +343,11 @@ const context = new AsyncLocalStorage<ItemContext>();
 
 /** Credits each call's usage to whichever fixture is running it. */
 class MeteredProvider implements Provider {
-  constructor(private readonly inner: Provider) {}
+  readonly supportsHistory: boolean;
+
+  constructor(private readonly inner: Provider) {
+    this.supportsHistory = inner.supportsHistory === true;
+  }
 
   async complete(request: ProviderRequest): Promise<ProviderResponse> {
     const response = await this.inner.complete(request);

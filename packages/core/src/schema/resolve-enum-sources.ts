@@ -145,7 +145,7 @@ export async function resolveEnumSources(
   await Promise.all(
     [...usages].map(async ([sourceId, usage]) => {
       try {
-        const values = await resolver(sourceId);
+        const values = await resolver(sourceId, { sourceId, schema, ...usage });
         if (!values || values.length === 0) {
           failures.push({ sourceId, reason: "empty", ...usage });
           return;

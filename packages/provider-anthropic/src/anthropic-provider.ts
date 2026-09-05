@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Provider, ProviderRequest, ProviderResponse } from "@sembl/core";
+import type { Provider, ProviderRequest, ProviderResponse, ProviderTurn } from "@sembl/core";
 import type { AnthropicProviderConfig } from "./anthropic-config.js";
 import {
   DEFAULT_MAX_RETRIES,
@@ -9,6 +9,35 @@ import {
 } from "./anthropic-config.js";
 import { AnthropicProviderError, toProviderError } from "./errors.js";
 import { toInputSchema, toToolName } from "./schema-converter.js";
+
+/**
+ * Earlier turns as the API saw them: the model's rejected output as the
+ * tool call it made, the correction as that call's result flagged as an
+ * error. The forced tool choice then makes the model call the tool again,
+ * which is the corrected attempt. Ids only have to match within the
+ * conversation, so they are synthesised.
+ */
+function renderHistory(history: readonly ProviderTurn[], toolName: string): Anthropic.MessageParam[] {
+  const messages: Anthropic.MessageParam[] = [];
+  let lastToolUseId = "";
+  history.forEach((turn, i) => {
+    if (turn.role === "assistant") {
+      lastToolUseId = `toolu_sembl_${i}`;
+      messages.push({
+        role: "assistant",
+        content: [{ type: "tool_use", id: lastToolUseId, name: toolName, input: turn.data }],
+      });
+    } else if (lastToolUseId) {
+      messages.push({
+        role: "user",
+        content: [{ type: "tool_result", tool_use_id: lastToolUseId, content: turn.text, is_error: true }],
+      });
+    } else {
+      messages.push({ role: "user", content: turn.text });
+    }
+  });
+  return messages;
+}
 
 /** Per-call overrides handed to the SDK alongside the request body. */
 interface CallOptions {
@@ -29,6 +58,9 @@ interface CallOptions {
  * back out into an {@link AnthropicProviderError}.
  */
 export class AnthropicProvider implements Provider {
+  /** Repair turns are rendered as a tool call and its (failed) result. */
+  readonly supportsHistory = true;
+
   private client: Pick<Anthropic, "messages">;
   private config: AnthropicProviderConfig;
   private callOptions: CallOptions | undefined;
@@ -75,7 +107,10 @@ export class AnthropicProvider implements Provider {
         ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
         ...(thinking ? { thinking } : {}),
         system: this.buildSystem(request.systemPrompt),
-        messages: [{ role: "user", content: request.userInput }],
+        messages: [
+          { role: "user", content: request.userInput },
+          ...renderHistory(request.history ?? [], toolName),
+        ],
         tools: [
           {
             name: toolName,

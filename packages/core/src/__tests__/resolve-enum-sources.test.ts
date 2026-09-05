@@ -321,3 +321,30 @@ describe("resolveEnumSources", () => {
     expect(failures).toEqual([]);
   });
 });
+
+describe("resolver context", () => {
+  it("tells the resolver which schema and fields asked", async () => {
+    const schema: RuntimeSchema = {
+      id: "Listing",
+      description: "A listing.",
+      fields: [
+        { name: "kind", description: "Kind", type: { kind: "dynamicEnum", sourceId: "kinds" }, required: true },
+        {
+          name: "tags",
+          description: "Tags",
+          type: { kind: "array", items: { kind: "dynamicEnum", sourceId: "tags" } },
+          required: false,
+        },
+      ],
+    };
+    const seen: Record<string, unknown>[] = [];
+    await resolveEnumSources(schema, (sourceId, context) => {
+      seen.push({ sourceId, schemaId: context.schema.id, required: context.required, paths: context.paths });
+      return ["x"];
+    });
+    expect(seen.sort((a, b) => String(a.sourceId).localeCompare(String(b.sourceId)))).toEqual([
+      { sourceId: "kinds", schemaId: "Listing", required: true, paths: ["kind"] },
+      { sourceId: "tags", schemaId: "Listing", required: false, paths: ["tags[]"] },
+    ]);
+  });
+});

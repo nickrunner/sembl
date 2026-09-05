@@ -103,7 +103,10 @@ or `pattern` in the dialects that honour them.
 
 `@ValuesFrom` says the legal values aren't in the source tree — they come from
 a named source you resolve at coercion time. That's the shape a CMS taxonomy or
-a database enum table actually has.
+a database enum table actually has. The resolver is called once per source
+per coercion with a context — the schema, whether a required field depends on
+the source, and the field paths that use it — so one resolver can serve
+several taxonomies and log which field asked.
 
 ### 2. Compile them
 
@@ -292,6 +295,14 @@ path is untouched. It's off by default because it also multiplies worst-case
 latency — but for extraction from scraped HTML or third-party payloads, `1` is
 usually the right setting.
 
+With the bundled providers the repair is a real conversation: the model's
+rejected output goes back as its own turn — a tool call on Anthropic, an
+assistant message on OpenAI — and the correction as the reply to it, so the
+model is fixing something it said rather than something quoted at it. A
+custom provider opts in by setting `supportsHistory: true` and rendering
+`request.history`; otherwise the correction is folded into the user input,
+which every provider can handle.
+
 ### Empty results
 
 A model occasionally answers with no fields at all for a page it could
@@ -411,7 +422,9 @@ thumb English prose runs about four characters per token.
 
 For pages, [`@sembl/source-html`](packages/source-html/README.md) turns HTML
 into readable text with the title, meta tags and JSON-LD first, so the parts
-most likely to hold clean facts are the ones that survive a cut.
+most likely to hold clean facts are the ones that survive a cut. Its
+`htmlSources` puts the structured data in a source of its own, which the
+budget then never touches, and `extractImages` harvests a page's gallery.
 
 ## Knowing what to trust
 
@@ -620,5 +633,3 @@ in the order they bite:
   equivalent; the compiler warns rather than mistyping it.
 - **Provenance is top-level only.** A nested object is annotated as a whole,
   not per leaf.
-- **Repair is single-turn.** The correction travels as user text rather than a
-  real assistant turn, because the `Provider` interface is single-turn.

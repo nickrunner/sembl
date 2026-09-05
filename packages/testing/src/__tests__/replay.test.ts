@@ -95,3 +95,21 @@ describe("RecordingProvider and ReplayProvider", () => {
     expect(new ReplayProvider(join(dir, "missing")).size()).toBe(0);
   });
 });
+
+describe("history in recordings", () => {
+  it("keys a repair call separately from the call it repairs, and passes supportsHistory through", () => {
+    const base: ProviderRequest = { systemPrompt: "sys", userInput: "in", jsonSchema: {}, schema };
+    const repair: ProviderRequest = {
+      ...base,
+      history: [{ role: "assistant", data: { name: 1 } }, { role: "user", text: "fix" }],
+    };
+    expect(recordingKey(repair)).not.toBe(recordingKey(base));
+    expect(recordingKey({ ...base, history: [] })).toBe(recordingKey(base));
+
+    const turnAware: Provider = { supportsHistory: true, async complete() { return { data: {} }; } };
+    expect(new RecordingProvider(turnAware, dir).supportsHistory).toBe(true);
+    expect(new ReplayProvider(dir, { fallback: turnAware }).supportsHistory).toBe(true);
+    expect(new ReplayProvider(dir, { fallback: { async complete() { return { data: {} }; } } }).supportsHistory).toBe(false);
+    expect(new ReplayProvider(dir).supportsHistory).toBe(true);
+  });
+});

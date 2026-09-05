@@ -5,6 +5,25 @@ packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
 `@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
 lockstep, so one entry covers a release.
 
+## Unreleased
+
+Block 3 of the Stays requests:
+
+- Multi-turn repair. `ProviderRequest.history` carries the rejected output
+  as an assistant turn and the correction as a user turn; both bundled
+  providers render it natively (a tool call and an error tool result on
+  Anthropic, assistant and user messages on OpenAI) and declare
+  `supportsHistory`. Empty-result retries use the same turns. A provider
+  without it still gets the correction folded into the input. Recordings
+  key on the history, so a repair call never collides with the call it
+  repairs.
+- `EnumResolver` receives a context: the schema, whether a required field
+  depends on the source, and the field paths that use it.
+- `@sembl/source-html`: `htmlSources` returns the structured data and the
+  body text as two labelled sources so the budget never cuts the JSON-LD;
+  `extractImages` harvests OpenGraph, JSON-LD and `<img>` images with junk
+  and duplicates dropped.
+
 ## 0.4.0
 
 From the Stays integration:
