@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import { parseTable } from "./table.js";
 import type { Table, TableData, TableOptions } from "./table.js";
 
@@ -53,7 +53,7 @@ export function rowText(table: Table, index: number): string {
  * lines, so a row is complete on its own and provenance points back to a
  * row number a person can find.
  */
-export function rowSources(table: Table, options: RowSourceOptions = {}): Source[] {
+export function rowSources(table: Table, options: RowSourceOptions = {}): TextSource[] {
   return table.rows.map((_, i) => ({ label: rowLabel(table, i, options.label), text: rowText(table, i) }));
 }
 
@@ -82,7 +82,7 @@ export function tableText(table: Table, options: TableSourceOptions = {}): strin
  * for `coerceMany`. Options select the sheet, the header row, and how many
  * rows and columns to keep.
  */
-export async function tableRows(data: TableData, options: TableOptions & RowSourceOptions = {}): Promise<Source[]> {
+export async function tableRows(data: TableData, options: TableOptions & RowSourceOptions = {}): Promise<TextSource[]> {
   const { label, ...tableOptions } = options;
   const table = await parseTable(data, tableOptions);
   return rowSources(table, label === undefined ? {} : { label });
@@ -94,7 +94,7 @@ export async function tableRows(data: TableData, options: TableOptions & RowSour
  * object, like a rate card or a seasonal price table. `maxRows` caps what
  * is rendered.
  */
-export async function tableSource(data: TableData, options: TableOptions & TableSourceOptions = {}): Promise<Source> {
+export async function tableSource(data: TableData, options: TableOptions & TableSourceOptions = {}): Promise<TextSource> {
   const { label, columnWidth, ...tableOptions } = options;
   const table = await parseTable(data, tableOptions);
   const textOptions: TableSourceOptions = {};

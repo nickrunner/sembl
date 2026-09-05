@@ -1,9 +1,46 @@
 # Changelog
 
 All notable changes to the SEMBL packages are recorded here. The publishable
-packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
-`@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
-lockstep, so one entry covers a release.
+packages (`@sembl/core`, `@sembl/compiler`, the two providers, `@sembl/testing`
+and every `@sembl/source-*` package) move in lockstep, so one entry covers a
+release.
+
+## Unreleased
+
+Input modalities:
+
+- Image and PDF sources in core. `Source` is `TextSource | ImageSource |
+  DocumentSource`, with guards, `renderContent()` for ordered content blocks,
+  `ProviderRequest.content`, and `Provider.supportsImages` /
+  `supportsDocuments`; core refuses a binary source for a provider without
+  support before any call. `maxImages` / `maxDocuments` cap a run with a
+  `sourcesDropped` trace event. Both providers render image and document
+  blocks (OpenAI takes PDF bytes only). Recordings key on a hash of binary
+  content; eval fixtures accept `{ "image": … }` and `{ "document": … }`.
+  Text-only prompts are byte-for-byte unchanged.
+- New package `@sembl/source-pdf` (pdf.js, Apache-2.0; needs Node 22.13):
+  `pdfToText`, `pdfSource`, `pdfSources` one per page, metadata first,
+  `pdfInfo` to detect scans, `PdfError` codes.
+- New package `@sembl/source-table` (exceljs, MIT): `tableRows` one source
+  per row for `coerceMany`, `tableSource` for a whole sheet, and the
+  import-wizard flow — `mappingSchema`, `mappingInput`, `applyMapping` —
+  where the model coerces a column mapping once and code applies it.
+- New package `@sembl/source-email` (postal-mime, MIT-0): `emailSource`,
+  `emailSources` with attachment routing, `threadSources` for threads and
+  mbox, quoted replies and signatures stripped.
+- New package `@sembl/source-audio` (`openai` SDK for the bundled
+  transcriber): pluggable `Transcriber`, `audioSource` with `[HH:MM:SS]`
+  lines, `audioSources` chunking, `evidenceTimestamp`, `withTranscriptCache`,
+  `OpenAITranscriber`, `FakeTranscriber`.
+- New package `@sembl/source-docx` (no dependencies): `.docx` and `.odt` with
+  headings, lists, tables, footnotes; `docxSources` one per section;
+  tracked changes resolved.
+- New package `@sembl/source-feed` (no dependencies): `jsonSource` /
+  `jsonItems`, `xmlSource` / `xmlItems`, `feedItems` for RSS and Atom,
+  `icsSource` / `icsEvents`, and `availabilityWindows` with recurrence
+  expanded and DST-correct.
+- Every source package returns `TextSource`, so `.text` stays typed.
+- Examples 14–20, one per modality.
 
 ## 0.5.0
 

@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import { pageToText } from "@sembl/source-html";
 import { EmailParseError } from "./errors.js";
 import { splitMbox } from "./mbox.js";
@@ -72,7 +72,7 @@ function defaultLabel(email: ParsedEmail): string {
 
 /** One message's sources and the attachments to route, under a label. */
 function sourcesFor(email: ParsedEmail, label: string, options: EmailSourceOptions): EmailSourcesResult {
-  const sources: Source[] = [{ label, text: emailToText(email, { ...options, label }) }];
+  const sources: TextSource[] = [{ label, text: emailToText(email, { ...options, label }) }];
   const attachments: RoutedAttachment[] = [];
   for (const attachment of email.attachments) {
     const attachmentLabel = `${label}: attachment ${attachment.filename}`;
@@ -97,7 +97,7 @@ function sourcesFor(email: ParsedEmail, label: string, options: EmailSourceOptio
  * Attachments are listed, not read. For their contents use
  * {@link emailSources}.
  */
-export async function emailSource(input: EmailInput, options: EmailSourceOptions = {}): Promise<Source> {
+export async function emailSource(input: EmailInput, options: EmailSourceOptions = {}): Promise<TextSource> {
   const email = await parseEmail(input);
   return { label: options.label ?? defaultLabel(email), text: emailToText(email, options) };
 }

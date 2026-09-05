@@ -13,10 +13,18 @@ import * as e10 from "./examples/10-tracing.js";
 import * as e11 from "./examples/11-record-replay.js";
 import * as e12 from "./examples/12-eval.js";
 import * as e13 from "./examples/13-instructions.js";
+import * as e14 from "./examples/14-images.js";
+import * as e15 from "./examples/15-pdf.js";
+import * as e16 from "./examples/16-table.js";
+import * as e17 from "./examples/17-email.js";
+import * as e18 from "./examples/18-audio.js";
+import * as e19 from "./examples/19-docx.js";
+import * as e20 from "./examples/20-feeds.js";
 
 const examples = [
   ["01", e01], ["02", e02], ["03", e03], ["04", e04], ["05", e05], ["06", e06],
   ["07", e07], ["08", e08], ["09", e09], ["10", e10], ["11", e11], ["12", e12], ["13", e13],
+  ["14", e14], ["15", e15], ["16", e16], ["17", e17], ["18", e18], ["19", e19], ["20", e20],
 ] as const;
 
 async function main(): Promise<void> {

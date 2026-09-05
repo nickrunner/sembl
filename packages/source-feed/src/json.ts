@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import { FeedError, itemLabel, pushScalar, renderOutline, tidyText } from "./shared.js";
 import type { OutlineLine } from "./shared.js";
 
@@ -210,7 +210,7 @@ export function jsonToText(value: unknown, options: JsonSourceOptions = {}): str
  * {@link jsonToText}. Pass what an API returned, not the raw body: the
  * value is walked, not parsed.
  */
-export function jsonSource(value: unknown, label?: string, options?: JsonSourceOptions): Source {
+export function jsonSource(value: unknown, label?: string, options?: JsonSourceOptions): TextSource {
   const text = jsonToText(value, options);
   return label ? { label, text } : { text };
 }
@@ -258,7 +258,7 @@ export function getPath(value: unknown, path: string): unknown {
  * progress output can name each item. Throws when the path is missing or
  * does not hold an array.
  */
-export function jsonItems(value: unknown, path: string, label = "Item", options?: JsonSourceOptions): Source[] {
+export function jsonItems(value: unknown, path: string, label = "Item", options?: JsonSourceOptions): TextSource[] {
   const list = getPath(value, path);
   if (list === undefined) {
     throw new FeedError("json", `Nothing at path "${path}"`);

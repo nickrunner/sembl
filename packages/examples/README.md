@@ -1,6 +1,6 @@
 # @sembl/examples
 
-Fourteen runnable examples, one per feature, against a fictional set of rental
+Twenty runnable examples, one per feature, against a fictional set of rental
 listings in `data/`.
 
 ```sh
@@ -32,6 +32,12 @@ only calls whose prompt, schema or input changed go live again.
 | 12 | The eval harness over `evals/listing`, with deltas against the previous run   |
 | 13 | `instructions`: a per-call hint the schema can't carry, changing the result   |
 | 14 | An image source: a listing read from a photo, provenance pointing into it, a text-only provider refused |
+| 15 | `@sembl/source-pdf`: a brochure, one source per page, provenance naming the page |
+| 16 | `@sembl/source-table`: CSV rows through `coerceMany`, then a coerced column mapping applied by code |
+| 17 | `@sembl/source-email`: a handover thread, quoted replies stripped, attachments routed |
+| 18 | `@sembl/source-audio`: a host's voice note transcribed with timestamps as evidence |
+| 19 | `@sembl/source-docx`: handover notes, one source per section                  |
+| 20 | `@sembl/source-feed`: an XML property feed through `coerceMany`, and an ICS calendar |
 
 `pnpm --filter @sembl/examples eval` runs example 12's fixtures through the
 `sembl eval` CLI instead, using `src/support/eval-config.ts` as the config.
