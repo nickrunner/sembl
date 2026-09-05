@@ -1,6 +1,6 @@
 # @sembl/examples
 
-Twenty runnable examples, one per feature, against a fictional set of rental
+Twenty-one runnable examples, one per feature, against a fictional set of rental
 listings in `data/`.
 
 ```sh
@@ -38,6 +38,7 @@ only calls whose prompt, schema or input changed go live again.
 | 18 | `@sembl/source-audio`: a host's voice note transcribed with timestamps as evidence |
 | 19 | `@sembl/source-docx`: handover notes, one source per section                  |
 | 20 | `@sembl/source-feed`: an XML property feed through `coerceMany`, and an ICS calendar |
+| 21 | `@sembl/source-image`: sniffing, EXIF as a metadata source beside the photo, a gallery fetched with limits, sharp resizing |
 
 `pnpm --filter @sembl/examples eval` runs example 12's fixtures through the
 `sembl eval` CLI instead, using `src/support/eval-config.ts` as the config.

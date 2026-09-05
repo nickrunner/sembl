@@ -20,11 +20,13 @@ import * as e17 from "./examples/17-email.js";
 import * as e18 from "./examples/18-audio.js";
 import * as e19 from "./examples/19-docx.js";
 import * as e20 from "./examples/20-feeds.js";
+import * as e21 from "./examples/21-image-tools.js";
 
 const examples = [
   ["01", e01], ["02", e02], ["03", e03], ["04", e04], ["05", e05], ["06", e06],
   ["07", e07], ["08", e08], ["09", e09], ["10", e10], ["11", e11], ["12", e12], ["13", e13],
   ["14", e14], ["15", e15], ["16", e16], ["17", e17], ["18", e18], ["19", e19], ["20", e20],
+  ["21", e21],
 ] as const;
 
 async function main(): Promise<void> {

@@ -52,14 +52,14 @@ OpenAI provider implementing the `Provider` interface. Converts `RuntimeSchema` 
 ### @sembl/source-html
 Zero-dependency HTML → text for extraction: title and meta tags, then JSON-LD, then body text, so head-keeping truncation preserves the structured parts.
 
-### @sembl/source-pdf, source-table, source-email, source-audio, source-docx, source-feed
+### @sembl/source-pdf, source-table, source-email, source-audio, source-docx, source-feed, source-image (+ source-image-sharp)
 One package per input modality, each turning its format into `TextSource`s with its parser as its own regular dependency (never added to core, never a peer dependency). Copy `source-html`'s package layout when adding another. Images and PDFs as native model input live in core (`ImageSource` / `DocumentSource`, `renderContent`, `Provider.supportsImages/supportsDocuments`).
 
 ### @sembl/testing
 Node-only test support: `RecordingProvider` / `ReplayProvider` (request/response pairs on disk, keyed by a hash of what reached the model) and the eval harness behind `sembl eval`.
 
 ### @sembl/examples (private)
-Twenty runnable examples under `src/examples/`, one per feature, over fictional listings in `data/`. `src/support/provider.ts` picks Anthropic or OpenAI from the env and wraps it in `replayOrRecord` so runs are recorded under `recordings/` (gitignored). `pnpm --filter @sembl/examples demo [n]`.
+Twenty-one runnable examples under `src/examples/`, one per feature, over fictional listings in `data/`. `src/support/provider.ts` picks Anthropic or OpenAI from the env and wraps it in `replayOrRecord` so runs are recorded under `recordings/` (gitignored). `pnpm --filter @sembl/examples demo [n]`.
 
 ## Key Patterns
 
