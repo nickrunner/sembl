@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { coerceMany } from "../coerce/coerce-many.js";
 import {
   coerceWithProvenance,
   partialCoerceWithProvenance,
 } from "../coerce/coerce.js";
-import { splitProvenance, toProvenanceSchema } from "../coerce/provenance.js";
+import { splitProvenance, toProvenanceSchema, provenanceInstructions } from "../coerce/provenance.js";
 import { CoerceError } from "../errors/coerce-error.js";
 import { runtimeSchemaToJsonSchema } from "../schema/json-schema.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "../provider/types.js";
@@ -222,5 +223,72 @@ describe("partialCoerceWithProvenance", () => {
     expect(data).toEqual({ name: "Sea Cabin" });
     expect("sleeps" in data).toBe(false);
     expect(Object.keys(provenance)).toEqual(["name"]);
+  });
+});
+
+describe("per-field provenance", () => {
+  const schema: RuntimeSchema = {
+    id: "Listing",
+    description: "A listing.",
+    fields: [
+      { name: "name", description: "Name", type: { kind: "string" }, required: true },
+      { name: "sleeps", description: "Sleeps", type: { kind: "number" }, required: false },
+      { name: "rate", description: "Rate", type: { kind: "number" }, required: false },
+    ],
+  };
+
+  it("wraps only the listed fields", () => {
+    const { schema: wrapper } = toProvenanceSchema(schema, undefined, { fields: ["name", "rate"] });
+    expect(wrapper.fields.map((f) => `${f.name}:${f.type.kind}`)).toEqual([
+      "name:object",
+      "sleeps:number",
+      "rate:object",
+    ]);
+  });
+
+  it("tells the model which fields are wrapped", () => {
+    const text = provenanceInstructions({ fields: ["name", "rate"] });
+    expect(text).toContain("Only these fields are wrapped as objects, with the extracted value in `value`: name, rate.");
+    expect(text).not.toContain("Every field is wrapped");
+  });
+
+  it("rejects a name that is not a field", () => {
+    expect(() => toProvenanceSchema(schema, undefined, { fields: ["nope"] })).toThrow(RangeError);
+  });
+
+  it("splits a mixed response and reports provenance for the wrapped fields only", async () => {
+    let request: ProviderRequest | undefined;
+    const provider: Provider = {
+      async complete(r) {
+        request = r;
+        return {
+          data: { name: { value: "Cabin", confidence: "high", evidence: "Cabin" }, sleeps: 6, rate: { value: 250, confidence: "medium" } },
+        };
+      },
+    };
+    const result = await coerceWithProvenance<{ name: string; sleeps?: number; rate?: number }>("x", {
+      provider,
+      schema,
+      provenanceFields: ["name", "rate"],
+    });
+    expect(request?.schema.fields.find((f) => f.name === "sleeps")?.type).toEqual({ kind: "number" });
+    expect(result.data).toEqual({ name: "Cabin", sleeps: 6, rate: 250 });
+    expect(Object.keys(result.provenance).sort()).toEqual(["name", "rate"]);
+  });
+
+  it("takes field names on coerceMany's provenance option", async () => {
+    const provider: Provider = {
+      async complete(r) {
+        const wrapped = r.schema.fields.filter((f) => f.type.kind === "object").map((f) => f.name);
+        return { data: { name: { value: "Cabin", confidence: "high" }, sleeps: 6, wrappedFields: wrapped } };
+      },
+    };
+    const [result] = await coerceMany<{ name: string; sleeps?: number }>(["x"], {
+      provider,
+      schema,
+      provenance: ["name"],
+      onInvalidField: "drop",
+    });
+    expect(result.ok && result.provenance).toEqual({ name: { confidence: "high" } });
   });
 });

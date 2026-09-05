@@ -40,6 +40,10 @@ export class Listing {
   @ValuesFrom("cancellation-policies")
   @Constrain({ maxLength: 32 })
   cancellationPolicy?: string;
+
+  @Describe("The listing's own web page.")
+  @Constrain({ format: "url" })
+  website?: string;
 }
 
 @Schema("Listing fields whose annotations the compiler cannot resolve.")
@@ -73,6 +77,11 @@ export class UnreadableAnnotations {
   // @ts-expect-error - maxLength is a number; exercises the compiler warning
   @Constrain({ maxLength: "40" })
   wrongValueKind?: string;
+
+  @Describe("A format the library does not know.")
+  // @ts-expect-error - not a FieldFormat; exercises the compiler warning
+  @Constrain({ format: "phone" })
+  unknownFormat?: string;
 }
 
 @Schema("Fields where @ValuesFrom is on a type it cannot apply to.")

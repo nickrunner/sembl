@@ -61,6 +61,13 @@ export interface CoerceOptions {
    */
   onInvalidField?: InvalidFieldPolicy;
   /**
+   * With `coerceWithProvenance` / `partialCoerceWithProvenance`: annotate only
+   * these top-level fields. The rest come back plain, which roughly halves
+   * the output when a human reviews a few fields and code checks the others.
+   * Ignored by the plain coercions.
+   */
+  provenanceFields?: readonly string[];
+  /**
    * How many times to ask again when a non-empty input yields no fields at
    * all. Default 0. A model occasionally answers `{}` for a page it could
    * read; the retry tells it so and asks for every stated value. Counts
@@ -293,8 +300,9 @@ async function prepareRequest(
   // Schema, and how to judge confidence by the extra instructions.
   const promptSpan = tracer.startSpan("buildPrompt", {}, rootSpan);
   const basePrompt = buildPrompt(schema, bundle, { resolvedEnums, instructions });
+  const provenanceOptions = { sourceLabels, fields: options.provenanceFields };
   const systemPrompt = provenance
-    ? `${basePrompt}\n${provenanceInstructions({ sourceLabels })}`
+    ? `${basePrompt}\n${provenanceInstructions(provenanceOptions)}`
     : basePrompt;
   tracer.addEvent(promptSpan, "promptBuilt", {
     promptLength: systemPrompt.length,
@@ -304,7 +312,7 @@ async function prepareRequest(
   tracer.endSpan(promptSpan);
 
   const request = provenance
-    ? toProvenanceSchema(schema, bundle, { sourceLabels })
+    ? toProvenanceSchema(schema, bundle, provenanceOptions)
     : { schema, bundle };
 
   const schemaSpan = tracer.startSpan("buildJsonSchema", {}, rootSpan);
@@ -484,7 +492,8 @@ async function prepareSources(
   parent: TraceSpan,
 ): Promise<Source[]> {
   const { preprocess, maxInputChars, truncate } = options;
-  if (!preprocess && maxInputChars === undefined) {
+  const anyCapped = sources.some((s) => s.maxChars !== undefined);
+  if (!preprocess && maxInputChars === undefined && !anyCapped) {
     return [...sources];
   }
 
@@ -504,7 +513,7 @@ async function prepareSources(
       });
     }
 
-    if (maxInputChars !== undefined) {
+    if (maxInputChars !== undefined || prepared.some((s) => s.maxChars !== undefined)) {
       const budgeted = budgetSources(prepared, maxInputChars, truncate);
       prepared = budgeted.sources;
       if (budgeted.truncated.length > 0) {

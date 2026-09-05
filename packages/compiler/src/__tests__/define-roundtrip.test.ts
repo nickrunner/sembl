@@ -58,6 +58,7 @@ const Listing = defineSchema(
         maxLength: 32,
       })
       .optional(),
+    website: field.string("The listing's own web page.", { format: "url" }).optional(),
   },
 );
 

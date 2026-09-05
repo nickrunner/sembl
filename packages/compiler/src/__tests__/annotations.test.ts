@@ -151,4 +151,11 @@ describe("@ValuesFrom", () => {
       expect(warning).toContain(described);
     },
   );
+
+  it("reads a format and rejects one it does not know", () => {
+    expect(field("Listing", "website").constraints).toEqual({ format: "url" });
+    expect(field("UnreadableAnnotations", "unknownFormat").constraints).toBeUndefined();
+    const [warning] = warningsFor("UnreadableAnnotations", "unknownFormat");
+    expect(warning).toContain('format "phone" is not a known format');
+  });
 });

@@ -6,6 +6,7 @@ import type {
 } from "../schema/types.js";
 import type { ResolvedEnums } from "../schema/enum-source.js";
 import { SOURCE_INSTRUCTIONS } from "./sources.js";
+import { describeFormat } from "../schema/formats.js";
 
 /**
  * Options for prompt generation.
@@ -46,8 +47,12 @@ function describeConstraints(constraints: FieldConstraints | undefined): string[
   }
 
   const phrases: string[] = [];
-  const { minLength, maxLength, minimum, maximum, minItems, maxItems, pattern } =
+  const { minLength, maxLength, minimum, maximum, minItems, maxItems, pattern, format } =
     constraints;
+
+  if (format !== undefined) {
+    phrases.push(describeFormat(format));
+  }
 
   if (minLength !== undefined && maxLength !== undefined) {
     phrases.push(`between ${minLength} and ${maxLength} characters`);

@@ -7,6 +7,7 @@ import type {
 } from "../schema/types.js";
 import type { ResolvedEnums } from "../schema/enum-source.js";
 import type { FieldValidationIssue } from "../errors/coerce-error.js";
+import { validateFormat } from "../schema/formats.js";
 
 /**
  * Options shared by both validation modes.
@@ -48,7 +49,7 @@ function validateConstraints(
   path: string,
   issues: FieldValidationIssue[],
 ): void {
-  const { minLength, maxLength, minimum, maximum, minItems, maxItems, pattern } =
+  const { minLength, maxLength, minimum, maximum, minItems, maxItems, pattern, format } =
     constraints;
 
   if (Array.isArray(value)) {
@@ -95,6 +96,10 @@ function validateConstraints(
         message: `Expected a value matching /${pattern}/, got ${JSON.stringify(value)}`,
         received: value,
       });
+    }
+    if (format !== undefined) {
+      const message = validateFormat(value, format);
+      if (message) issues.push({ path, message, received: value });
     }
     return;
   }

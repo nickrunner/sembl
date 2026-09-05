@@ -14,8 +14,11 @@ export interface CoerceManyOptions<T = unknown> extends CoerceOptions {
   concurrency?: number;
   /** Which coercion to run per item. Default `"coerce"`. */
   mode?: "coerce" | "partialCoerce";
-  /** Ask for per-field provenance on every item. Default false. */
-  provenance?: boolean;
+  /**
+   * Ask for provenance on every item: `true` for every field, or the names
+   * of the top-level fields to annotate. Default false.
+   */
+  provenance?: boolean | readonly string[];
   /**
    * How to warm a provider's prompt cache before fanning out, so the stable
    * prefix is written once and every item reads it.
@@ -189,7 +192,7 @@ export async function coerceMany<T>(
   const {
     concurrency = DEFAULT_CONCURRENCY,
     mode = "coerce",
-    provenance = false,
+    provenance: provenanceOption = false,
     primeCache = true,
     primed,
     onItem,
@@ -198,6 +201,10 @@ export async function coerceMany<T>(
     ...coerceOptions
   } = options;
   const retry = { ...DEFAULT_RETRY, ...retryOptions };
+  const provenance = provenanceOption !== false;
+  if (Array.isArray(provenanceOption)) {
+    coerceOptions.provenanceFields = provenanceOption;
+  }
 
   if (!Number.isInteger(concurrency) || concurrency < 1) {
     throw new RangeError(`concurrency must be a positive integer, got ${String(concurrency)}`);

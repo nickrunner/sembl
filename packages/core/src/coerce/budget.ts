@@ -61,7 +61,9 @@ function truncateText(text: string, limit: number, policy: TruncatePolicy): stri
 /**
  * Fit a set of sources into a character budget.
  *
- * The budget covers the sources' text as a whole. When they exceed it, it is
+ * A source's own `maxChars` is applied first, on its own, so a page known to
+ * be huge can be capped without starving the sources beside it. Then the
+ * total budget, when there is one, covers the sources' text as a whole. When they exceed it, it is
  * shared out so that every source that fits within an equal share keeps all
  * of its text, and what those leave unused goes to the longer ones. A short
  * email next to a long scraped page is therefore never touched; the page
@@ -71,13 +73,36 @@ function truncateText(text: string, limit: number, policy: TruncatePolicy): stri
  */
 export function budgetSources(
   sources: readonly Source[],
-  maxChars: number,
+  maxChars: number | undefined,
   policy: TruncatePolicy = "tail",
 ): BudgetResult {
-  const total = sources.reduce((sum, s) => sum + s.text.length, 0);
-  if (total <= maxChars) {
-    return { sources: [...sources], truncated: [] };
+  // One record per source however many times it is cut, keyed by position.
+  const records = new Map<number, TruncationRecord>();
+  const record = (index: number, source: Source, text: string) => {
+    const existing = records.get(index);
+    if (existing) {
+      existing.keptLength = text.length;
+    } else {
+      records.set(index, {
+        ...(source.label !== undefined ? { label: source.label } : {}),
+        originalLength: source.text.length,
+        keptLength: text.length,
+      });
+    }
+  };
+
+  const capped = sources.map((source, index) => {
+    if (source.maxChars === undefined || source.text.length <= source.maxChars) return source;
+    const text = truncateText(source.text, source.maxChars, policy);
+    record(index, source, text);
+    return { ...source, text };
+  });
+
+  const total = capped.reduce((sum, s) => sum + s.text.length, 0);
+  if (maxChars === undefined || total <= maxChars) {
+    return { sources: capped, truncated: [...records.values()] };
   }
+  sources = capped;
 
   // Shortest first: each source takes the smaller of its length and an equal
   // share of what is left, so a short one's leftover flows to the longer ones.
@@ -91,18 +116,13 @@ export function budgetSources(
     remaining -= granted;
   });
 
-  const truncated: TruncationRecord[] = [];
   const budgeted = sources.map((source, index) => {
     const limit = allowance.get(index) ?? 0;
     if (source.text.length <= limit) return source;
     const text = truncateText(source.text, limit, policy);
-    truncated.push({
-      ...(source.label !== undefined ? { label: source.label } : {}),
-      originalLength: source.text.length,
-      keptLength: text.length,
-    });
+    record(index, source, text);
     return { ...source, text };
   });
 
-  return { sources: budgeted, truncated };
+  return { sources: budgeted, truncated: [...records.values()] };
 }

@@ -11,6 +11,7 @@ export async function run(): Promise<void> {
   const schema = bundle.schemas.Listing;
 
   heading("Constraints become prompt instructions and validation rules");
+  note("currency carries format: \"currency\" — an ISO 4217 code, stated in the prompt and checked locally.");
   const prompt = buildPrompt(schema, bundle, { resolvedEnums: taxonomy });
   show("prompt excerpt", prompt.split("\n").filter((l) => l.includes("Limits:")).join("\n"));
 
