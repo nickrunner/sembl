@@ -5,7 +5,7 @@ packages (`@sembl/core`, `@sembl/compiler`, `@sembl/provider-anthropic`,
 `@sembl/provider-openai`, `@sembl/source-html`, `@sembl/testing`) move in
 lockstep, so one entry covers a release.
 
-## Unreleased
+## 0.5.0
 
 Block 3 of the Stays requests:
 

@@ -1,6 +1,6 @@
 {
   "name": "@sembl/provider-anthropic",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Anthropic provider for SEMBL, using forced tool calls for structured output.",
   "keywords": [
     "llm",
