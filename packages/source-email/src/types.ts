@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 
 /** A raw RFC 822 / MIME message: the bytes of an `.eml` file, or its text. */
 export type RawEmail = string | Uint8Array | ArrayBuffer;
@@ -108,7 +108,7 @@ export interface RoutedAttachment {
 /** What {@link emailSources} and {@link threadSources} return. */
 export interface EmailSourcesResult {
   /** The message (or messages) and every text-like attachment, in order. */
-  sources: Source[];
+  sources: TextSource[];
   /** The attachments that need another package to read. */
   attachments: RoutedAttachment[];
 }

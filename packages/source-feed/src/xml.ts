@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import { htmlToText } from "@sembl/source-html";
 import { FeedError, guardInput, itemLabel, pushScalar, renderOutline, tidyText } from "./shared.js";
 import type { OutlineLine, SizeGuardOptions } from "./shared.js";
@@ -325,7 +325,7 @@ export function xmlToText(xml: string, options: XmlSourceOptions = {}): string {
 }
 
 /** A whole document as one labelled SEMBL source. */
-export function xmlSource(xml: string, label?: string, options?: XmlSourceOptions): Source {
+export function xmlSource(xml: string, label?: string, options?: XmlSourceOptions): TextSource {
   const text = xmlToText(xml, options);
   return label ? { label, text } : { text };
 }
@@ -336,7 +336,7 @@ export function xmlSource(xml: string, label?: string, options?: XmlSourceOption
  * from 1; the default label is the last step of the selector. Throws when
  * nothing matches, since a batch of nothing is almost always a wrong path.
  */
-export function xmlItems(xml: string, selector: string, label?: string, options?: XmlSourceOptions): Source[] {
+export function xmlItems(xml: string, selector: string, label?: string, options?: XmlSourceOptions): TextSource[] {
   const root = parseXml(xml, options);
   const matches = selectElements(root, selector);
   if (matches.length === 0) {

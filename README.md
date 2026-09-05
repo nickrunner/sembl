@@ -426,6 +426,43 @@ most likely to hold clean facts are the ones that survive a cut. Its
 `htmlSources` puts the structured data in a source of its own, which the
 budget then never touches, and `extractImages` harvests a page's gallery.
 
+## Other kinds of input
+
+Text and HTML are the baseline. Images and PDFs are sources in their own
+right — a `Source` is text, an image, or a document — and go to the model as
+native content on both providers:
+
+```ts
+await coerce<Listing>(
+  [
+    { label: "Photo of the sign", image: { data: bytes, mediaType: "image/jpeg" } },
+    { label: "Brochure", document: { data: pdfBytes, mediaType: "application/pdf" } },
+  ],
+  { provider, schema, maxImages: 4 },
+);
+```
+
+The prompt's data boundary applies to them too: printed text inside a photo
+is data, never an instruction. `maxImages` and `maxDocuments` cap a run, a
+provider that lacks support is refused before any call, recordings key on a
+hash of the bytes, and eval fixtures take `{ "image": "photo.jpg" }`.
+
+Everything else is a package that turns its format into text sources, with
+its parser as its own dependency and nothing added to core:
+
+| Package               | Turns into sources                                                     |
+| --------------------- | ---------------------------------------------------------------------- |
+| `@sembl/source-html`  | pages: metadata and JSON-LD first, text after, images harvested        |
+| `@sembl/source-pdf`   | PDFs: one source per page, metadata first, scans detected              |
+| `@sembl/source-table` | CSV and XLSX: one source per row, or a coerced column mapping applied by code |
+| `@sembl/source-email` | emails and threads: quoted replies stripped, attachments routed        |
+| `@sembl/source-audio` | recordings: a pluggable transcriber, timestamps as evidence            |
+| `@sembl/source-docx`  | Word and OpenDocument files: one source per section, tables kept       |
+| `@sembl/source-feed`  | XML, RSS/Atom, iCalendar and JSON: one source per item                 |
+
+Each package README has the details. `@sembl/source-pdf` needs Node 22.13 or
+later, which pdf.js requires; the rest run on Node 20.
+
 ## Knowing what to trust
 
 A pre-filled form needs to distinguish what was read from the input from what
@@ -567,7 +604,13 @@ by how much), `enumSourceFailed`, `repairAttempt`, and `issuesResolved` (what
 | `@sembl/provider-openai`    | OpenAI provider                                                     |
 | `@sembl/source-html`        | HTML → readable text, JSON-LD and meta first                        |
 | `@sembl/testing`            | record/replay providers, eval harness                               |
-| `@sembl/examples`           | thirteen runnable examples (private)                                |
+| `@sembl/source-pdf`         | PDFs → per-page text sources                                        |
+| `@sembl/source-table`       | CSV/XLSX → row sources and column mapping                           |
+| `@sembl/source-email`       | emails and threads → sources, attachments routed                    |
+| `@sembl/source-audio`       | audio → timestamped transcript sources                              |
+| `@sembl/source-docx`        | Word/ODT → per-section sources                                      |
+| `@sembl/source-feed`        | XML, RSS/Atom, iCal, JSON → per-item sources                        |
+| `@sembl/examples`           | twenty runnable examples  (private)                                |
 
 ## Development
 
@@ -585,7 +628,7 @@ these steps.
 
 ## Examples
 
-`packages/examples` has thirteen runnable examples, one per feature, from the
+`packages/examples` has twenty runnable examples, one per feature, from the
 basics through batches, injection-resistant sources, HTML budgeting,
 provenance, tracing, replay and evals — see its
 [README](packages/examples/README.md). Build, put a key in

@@ -1,5 +1,5 @@
 import { bundleOf, defineSchema, field } from "@sembl/core";
-import type { DefinedSchema, FieldDescriptor, FieldType, RuntimeSchema, SchemaBundle, Source } from "@sembl/core";
+import type { DefinedSchema, FieldDescriptor, FieldType, RuntimeSchema, SchemaBundle, TextSource } from "@sembl/core";
 import { parseTable, tableRecords } from "./table.js";
 import type { Table, TableData, TableOptions } from "./table.js";
 import { tableText } from "./sources.js";
@@ -177,7 +177,7 @@ export function mappingText(table: Table, options: MappingInputOptions = {}): st
  * Parse a table and render its header row plus a few sample rows as one
  * source, for coercing against {@link mappingSchema}.
  */
-export async function mappingInput(data: TableData, options: TableOptions & MappingInputOptions = {}): Promise<Source> {
+export async function mappingInput(data: TableData, options: TableOptions & MappingInputOptions = {}): Promise<TextSource> {
   const { sampleRows, label, ...tableOptions } = options;
   const table = await parseTable(data, tableOptions);
   const textOptions: MappingInputOptions = {};

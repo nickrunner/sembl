@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { parsePdfDate, withDocument } from "./pdfjs.js";
 import type { PdfOpenOptions } from "./pdfjs.js";
@@ -77,9 +77,11 @@ export function selectPages(pageCount: number, options: PdfTextOptions = {}): nu
 /**
  * Let the event loop turn. pdf.js parses in-process on a chain of
  * microtasks, so this is the only point at which a `timeoutMs` timer can
- * fire: once per page, before the page is read.
+ * fire: once per page, before the page is read. A zero-delay timer rather
+ * than `setImmediate`, so that it is ordered after the deadline timer when
+ * both are due — timers fire in creation order, immediates do not.
  */
-const yieldToLoop = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+const yieldToLoop = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 async function readPage(document: PDFDocumentProxy, number: number): Promise<PdfPage> {
   await yieldToLoop();
@@ -210,7 +212,7 @@ export function formatPdfMetadata(metadata: PdfMetadata): string {
  * loses its last pages, never its title. For a long document prefer
  * {@link pdfSources}, which lets the budget trim pages individually.
  */
-export async function pdfSource(data: Uint8Array | ArrayBuffer, label?: string, options: PdfSourceOptions = {}): Promise<Source> {
+export async function pdfSource(data: Uint8Array | ArrayBuffer, label?: string, options: PdfSourceOptions = {}): Promise<TextSource> {
   const { meta = true } = options;
   const text = await withDocument(data, options, async (document) => {
     const sections: string[] = [];
@@ -234,10 +236,10 @@ export async function pdfSource(data: Uint8Array | ArrayBuffer, label?: string, 
  * anything longer than a couple of pages; {@link pdfSource} is simpler when
  * the document is short. Only the sources that have content are returned.
  */
-export async function pdfSources(data: Uint8Array | ArrayBuffer, label = "Document", options: PdfSourceOptions = {}): Promise<Source[]> {
+export async function pdfSources(data: Uint8Array | ArrayBuffer, label = "Document", options: PdfSourceOptions = {}): Promise<TextSource[]> {
   const { meta = true } = options;
   return withDocument(data, options, async (document) => {
-    const sources: Source[] = [];
+    const sources: TextSource[] = [];
     if (meta) {
       const { metadata } = await readMetadata(document);
       sources.push({ label: `${label} (metadata)`, text: `Document metadata:\n${formatPdfMetadata(metadata)}` });

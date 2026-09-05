@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import { htmlToText } from "@sembl/source-html";
 import { FeedError, itemLabel, pushScalar, renderOutline, tidyText } from "./shared.js";
 import type { OutlineLine, SizeGuardOptions } from "./shared.js";
@@ -135,7 +135,7 @@ export function entryToText(entry: FeedEntry): string {
  * the entry's title, link, date and author as labelled lines and its
  * content converted from HTML to text. Labels are numbered from 1.
  */
-export function feedItems(xml: string, label = "Entry", options?: FeedSourceOptions): Source[] {
+export function feedItems(xml: string, label = "Entry", options?: FeedSourceOptions): TextSource[] {
   return parseFeed(xml, options).entries.map((entry, i) => ({
     label: itemLabel(label, i + 1),
     text: entryToText(entry),
@@ -146,7 +146,7 @@ export function feedItems(xml: string, label = "Entry", options?: FeedSourceOpti
  * A whole feed as one source: the feed's title and description, then every
  * entry as a block. For a feed of any length prefer {@link feedItems}.
  */
-export function feedSource(xml: string, label?: string, options?: FeedSourceOptions): Source {
+export function feedSource(xml: string, label?: string, options?: FeedSourceOptions): TextSource {
   const feed = parseFeed(xml, options);
   const head: OutlineLine[] = [];
   if (feed.title) pushScalar(head, 0, "Feed", feed.title);

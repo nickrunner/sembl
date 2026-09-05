@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import { AudioSourceError } from "./errors.js";
 import { formatTimestamp, renderTranscript, transcriptHeader } from "./render.js";
 import type { AudioInput, TranscribeOptions, Transcriber, Transcript, TranscriptSegment } from "./transcriber.js";
@@ -104,7 +104,7 @@ export async function audioSource(
   audio: AudioInput,
   transcriber: Transcriber,
   options: AudioSourceOptions = {},
-): Promise<Source> {
+): Promise<TextSource> {
   const { transcript } = await transcribeAudio(audio, transcriber, options);
   return {
     label: options.label ?? DEFAULT_LABEL,
@@ -176,7 +176,7 @@ export async function audioSources(
   audio: AudioInput,
   transcriber: Transcriber,
   options: AudioSourcesOptions,
-): Promise<Source[]> {
+): Promise<TextSource[]> {
   const { chunkSeconds, label = DEFAULT_LABEL, header = true } = options;
   const { transcript } = await transcribeAudio(audio, transcriber, options);
   const chunks = transcriptChunks(transcript, chunkSeconds);

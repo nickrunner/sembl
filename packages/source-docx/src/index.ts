@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import type { Block, DocxMetadata, HeadingBlock, ParsedDocument, TableStyle } from "./blocks.js";
 import { referencedNotes, renderBlocks, renderMetadata, renderNotes } from "./blocks.js";
 import { docxMetadata, mainPart, parseDocx } from "./docx.js";
@@ -118,7 +118,7 @@ export async function extractDocxMetadata(data: DocxInput): Promise<DocxMetadata
  * prefer {@link docxSources}, which gives each top-level section its own
  * source so the budget trims the long ones first.
  */
-export async function docxSource(data: DocxInput, label?: string, options: DocxTextOptions = {}): Promise<Source> {
+export async function docxSource(data: DocxInput, label?: string, options: DocxTextOptions = {}): Promise<TextSource> {
   const text = await docxToText(data, options);
   return label ? { label, text } : { text };
 }
@@ -142,7 +142,7 @@ function sectionLabel(label: string, heading: HeadingBlock, used: Map<string, nu
  * say which section a value came from. A document with no headings comes
  * back as a single source.
  */
-export async function docxSources(data: DocxInput, label = "Document", options: DocxTextOptions = {}): Promise<Source[]> {
+export async function docxSources(data: DocxInput, label = "Document", options: DocxTextOptions = {}): Promise<TextSource[]> {
   const document = parse(data, options);
   const levels = document.blocks.flatMap((block) => (block.kind === "heading" && !block.title ? [block.level] : []));
   if (levels.length === 0) {
@@ -163,7 +163,7 @@ export async function docxSources(data: DocxInput, label = "Document", options: 
     }
   }
 
-  const sources: Source[] = [];
+  const sources: TextSource[] = [];
   const lead: string[] = [];
   if (options.metadata ?? true) {
     const metadata = renderMetadata(document.metadata);

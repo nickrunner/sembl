@@ -1,4 +1,4 @@
-import type { Source } from "@sembl/core";
+import type { TextSource } from "@sembl/core";
 import { FeedError, guardInput, itemLabel, pushScalar, renderOutline, tidyText } from "./shared.js";
 import type { OutlineLine, SizeGuardOptions } from "./shared.js";
 
@@ -731,13 +731,13 @@ export function icsToText(ics: string, options: IcsSourceOptions = {}): string {
 }
 
 /** A whole calendar as one labelled SEMBL source. */
-export function icsSource(ics: string, label?: string, options?: IcsSourceOptions): Source {
+export function icsSource(ics: string, label?: string, options?: IcsSourceOptions): TextSource {
   const text = icsToText(ics, options);
   return label ? { label, text } : { text };
 }
 
 /** One source per VEVENT, for `coerceMany`. Labels are numbered from 1. */
-export function icsEvents(ics: string, label = "Event", options?: IcsSourceOptions): Source[] {
+export function icsEvents(ics: string, label = "Event", options?: IcsSourceOptions): TextSource[] {
   return parseIcs(ics, options).events.map((event, i) => ({
     label: itemLabel(label, i + 1),
     text: eventToText(event, options),
