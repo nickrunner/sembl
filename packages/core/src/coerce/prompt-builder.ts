@@ -5,7 +5,8 @@ import type {
   SchemaBundle,
 } from "../schema/types.js";
 import type { ResolvedEnums } from "../schema/enum-source.js";
-import { SOURCE_INSTRUCTIONS } from "./sources.js";
+import { sourceInstructions } from "./sources.js";
+import type { SourceKind } from "./sources.js";
 import { describeFormat } from "../schema/formats.js";
 
 /**
@@ -19,6 +20,12 @@ export interface PromptOptions {
    * of the system prompt. Blank entries are dropped.
    */
   instructions?: string | readonly string[];
+  /**
+   * The kinds of source the input holds. When an image or a document is
+   * among them the source rules also say how to read those; a text-only
+   * input — the default — renders exactly as it always has.
+   */
+  sourceKinds?: readonly SourceKind[];
 }
 
 /**
@@ -223,7 +230,7 @@ export function buildPrompt(
   }
 
   lines.push("");
-  lines.push(SOURCE_INSTRUCTIONS);
+  lines.push(sourceInstructions(options.sourceKinds));
 
   lines.push("");
   lines.push("Instructions:");
