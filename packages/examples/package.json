@@ -20,6 +20,8 @@
     "@sembl/source-email": "workspace:*",
     "@sembl/source-feed": "workspace:*",
     "@sembl/source-html": "workspace:*",
+    "@sembl/source-image": "workspace:*",
+    "@sembl/source-image-sharp": "workspace:*",
     "@sembl/source-pdf": "workspace:*",
     "@sembl/source-table": "workspace:*",
     "@sembl/testing": "workspace:*",
