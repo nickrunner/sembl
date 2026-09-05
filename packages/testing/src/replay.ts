@@ -1,7 +1,27 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Provider, ProviderRequest, ProviderResponse } from "@sembl/core";
+import type { ContentBlock, Provider, ProviderRequest, ProviderResponse } from "@sembl/core";
+
+/**
+ * One block of a multimodal request as a recording keeps it: text as is,
+ * an image or a document as its metadata and a hash of its bytes (or its
+ * URL), never the bytes themselves — a recording should stay a small,
+ * readable JSON file, and the hash is enough to recognise the request.
+ */
+export type RecordedBlock =
+  | { type: "text"; text: string }
+  | {
+      type: "image" | "document";
+      label?: string;
+      mediaType?: string;
+      /** SHA-256 of the bytes, for inline content. */
+      sha256?: string;
+      /** Size in bytes, for inline content given as bytes or base64. */
+      bytes?: number;
+      /** The URL, for content the provider fetches itself. */
+      url?: string;
+    };
 
 /** What a recording holds: enough of the request to recognise it, and the answer. */
 export interface Recording {
@@ -11,11 +31,36 @@ export interface Recording {
   request: {
     systemPrompt: string;
     userInput: string;
+    /** The blocks of a multimodal request, with binary content hashed. */
+    content?: RecordedBlock[];
     jsonSchema: Record<string, unknown>;
     history?: ProviderRequest["history"];
   };
   response: ProviderResponse;
   recordedAt: string;
+}
+
+function sha256(data: Uint8Array | string): string {
+  return createHash("sha256").update(typeof data === "string" ? Buffer.from(data, "base64") : data).digest("hex");
+}
+
+function byteLength(data: Uint8Array | string): number {
+  return typeof data === "string" ? Buffer.from(data, "base64").length : data.byteLength;
+}
+
+/** Reduce a block to what a recording keeps of it. */
+export function describeBlock(block: ContentBlock): RecordedBlock {
+  if (block.type === "text") return { type: "text", text: block.text };
+  const described: RecordedBlock = { type: block.type };
+  if (block.label !== undefined) described.label = block.label;
+  if ("url" in block.source) {
+    described.url = block.source.url;
+  } else {
+    described.mediaType = block.source.mediaType;
+    described.sha256 = sha256(block.source.data);
+    described.bytes = byteLength(block.source.data);
+  }
+  return described;
 }
 
 /** JSON with sorted keys, so the same request always hashes the same. */
@@ -30,13 +75,17 @@ function stable(value: unknown): string {
 /**
  * The key a request records under. Only the parts that reach the model
  * count: the system prompt, the user input and the JSON Schema. The runtime
- * schema and bundle are already folded into those.
+ * schema and bundle are already folded into those. A multimodal request
+ * also keys on its blocks, with each image or document reduced to a hash of
+ * its bytes or its URL, so two different photos under the same label are
+ * two recordings.
  */
 export function recordingKey(request: ProviderRequest): string {
   const material = stable({
     systemPrompt: request.systemPrompt,
     userInput: request.userInput,
     jsonSchema: request.jsonSchema,
+    ...(request.content ? { content: request.content.map(describeBlock) } : {}),
     // A repair call shares everything above with the call it repairs.
     ...(request.history && request.history.length > 0 ? { history: request.history } : {}),
   });
@@ -78,12 +127,16 @@ export class ReplayMissError extends Error {
  */
 export class RecordingProvider implements Provider {
   readonly supportsHistory: boolean;
+  readonly supportsImages: boolean;
+  readonly supportsDocuments: boolean;
 
   constructor(
     private readonly inner: Provider,
     private readonly dir: string,
   ) {
     this.supportsHistory = inner.supportsHistory === true;
+    this.supportsImages = inner.supportsImages === true;
+    this.supportsDocuments = inner.supportsDocuments === true;
     mkdirSync(dir, { recursive: true });
   }
 
@@ -95,6 +148,7 @@ export class RecordingProvider implements Provider {
       request: {
         systemPrompt: request.systemPrompt,
         userInput: request.userInput,
+        ...(request.content ? { content: request.content.map(describeBlock) } : {}),
         jsonSchema: request.jsonSchema,
         ...(request.history ? { history: request.history } : {}),
       },
@@ -130,6 +184,9 @@ export class ReplayProvider implements Provider {
    * recorded; the recordings decide whether it is answered.
    */
   readonly supportsHistory: boolean;
+  /** As `supportsHistory`: a recorded image request replays without a live provider. */
+  readonly supportsImages: boolean;
+  readonly supportsDocuments: boolean;
 
   constructor(
     private readonly dir: string,
@@ -137,6 +194,8 @@ export class ReplayProvider implements Provider {
   ) {
     this.recorder = options.fallback ? new RecordingProvider(options.fallback, dir) : undefined;
     this.supportsHistory = options.fallback ? options.fallback.supportsHistory === true : true;
+    this.supportsImages = options.fallback ? options.fallback.supportsImages === true : true;
+    this.supportsDocuments = options.fallback ? options.fallback.supportsDocuments === true : true;
   }
 
   async complete(request: ProviderRequest): Promise<ProviderResponse> {

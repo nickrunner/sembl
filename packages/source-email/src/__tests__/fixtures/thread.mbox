@@ -1,0 +1,58 @@
+From alice@seacabin.example Mon Sep  1 10:00:00 2025
+From: Alice Nguyen <alice@seacabin.example>
+To: Bob Osei <bob@example.com>
+Date: Mon, 1 Sep 2025 10:00:00 +0200
+Subject: Re: Sea Cabin for 12-15 September?
+Message-ID: <t2@seacabin.example>
+In-Reply-To: <t1@example.com>
+Content-Type: text/plain; charset=utf-8
+
+Hi Bob,
+
+Yes, those dates are free. The Sea Cabin sleeps 6 and is $250 a night; the
+dog is welcome. There is a sauna and a hot tub.
+
+Alice
+
+On Sun, 31 Aug 2025 at 18:05, Bob Osei <bob@example.com> wrote:
+> Hello, is the Sea Cabin free from 12 to 15 September for four adults, two
+> children and a dog?
+>From Bob's earlier note: we would need parking for two cars.
+
+From bob@example.com Sun Aug 31 18:05:00 2025
+From: Bob Osei <bob@example.com>
+To: Alice Nguyen <alice@seacabin.example>
+Date: Sun, 31 Aug 2025 18:05:00 +0100
+Subject: Sea Cabin for 12-15 September?
+Message-ID: <t1@example.com>
+Content-Type: text/plain; charset=utf-8
+
+Hello, is the Sea Cabin free from 12 to 15 September for four adults, two
+children and a dog?
+
+From bob@example.com Mon Sep  1 14:20:00 2025
+From: Bob Osei <bob@example.com>
+To: Alice Nguyen <alice@seacabin.example>
+Date: Mon, 1 Sep 2025 14:20:00 +0100
+Subject: Re: Sea Cabin for 12-15 September?
+Message-ID: <t3@example.com>
+In-Reply-To: <t2@seacabin.example>
+Content-Type: multipart/mixed; boundary="b3"
+
+--b3
+Content-Type: text/plain; charset=utf-8
+
+Booked, thank you. Guest list attached.
+
+Bob
+
+On Mon, 1 Sep 2025 at 10:00, Alice Nguyen <alice@seacabin.example> wrote:
+> Yes, those dates are free.
+--b3
+Content-Type: text/csv; name="guests.csv"
+Content-Disposition: attachment; filename="guests.csv"
+
+name,age
+Bob Osei,41
+Ama Osei,39
+--b3--

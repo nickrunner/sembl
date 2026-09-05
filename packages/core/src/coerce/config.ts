@@ -32,6 +32,10 @@ export interface SemblGlobalConfig {
   truncate?: TruncatePolicy;
   /** Transform each source before budgeting and rendering. */
   preprocess?: PreprocessSource;
+  /** Most image sources to send per coercion. Unbounded by default. */
+  maxImages?: number;
+  /** Most document sources to send per coercion. Unbounded by default. */
+  maxDocuments?: number;
 }
 
 /**
@@ -60,6 +64,10 @@ export interface SemblCallConfig {
   truncate?: TruncatePolicy;
   /** Override the source preprocessor for this call */
   preprocess?: PreprocessSource;
+  /** Override the image cap for this call */
+  maxImages?: number;
+  /** Override the document cap for this call */
+  maxDocuments?: number;
 }
 
 /**
@@ -77,6 +85,8 @@ export interface ResolvedConfig {
   maxInputChars?: number;
   truncate?: TruncatePolicy;
   preprocess?: PreprocessSource;
+  maxImages?: number;
+  maxDocuments?: number;
 }
 
 /**
@@ -127,5 +137,7 @@ export function resolveConfig(callConfig?: SemblCallConfig): ResolvedConfig {
     maxInputChars: callConfig?.maxInputChars ?? global.maxInputChars,
     truncate: callConfig?.truncate ?? global.truncate,
     preprocess: callConfig?.preprocess ?? global.preprocess,
+    maxImages: callConfig?.maxImages ?? global.maxImages,
+    maxDocuments: callConfig?.maxDocuments ?? global.maxDocuments,
   };
 }

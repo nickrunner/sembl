@@ -46,7 +46,11 @@ measuring. Fixtures are `{ input, expected }` pairs in a directory:
 
 A file may hold one fixture or an array; an input may be a string, a
 labelled source, a list of sources, or `{ "file": … }` to read a sibling
-file. Then either call the harness:
+file. `{ "image": "photo.jpg" }` and `{ "document": "scan.pdf" }` read a
+sibling file as an image or a PDF, with the media type taken from the
+extension (or pass a URL for the provider to fetch). A recording of such a
+request keys on a hash of the bytes and stores only that hash, never the
+bytes. Then either call the harness:
 
 ```ts
 import { runEval, loadFixtures, formatReport } from "@sembl/testing";
